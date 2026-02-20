@@ -31,6 +31,7 @@ public class TicketService {
         Ticket ticket = new Ticket();
         ticket.setTitle(request.getTitle());
         ticket.setDescription(request.getDescription());
+        ticket.setPriority(request.getPriority());
         ticket.setStatus(TicketStatus.OPEN);
         ticket.setCreatedBy(user);
 
@@ -66,6 +67,7 @@ public class TicketService {
         response.setId(ticket.getId());
         response.setTitle(ticket.getTitle());
         response.setDescription(ticket.getDescription());
+        response.setPriority(ticket.getPriority());
         response.setStatus(ticket.getStatus());
         response.setCreatedByUsername(
                 ticket.getCreatedBy() != null ? ticket.getCreatedBy().getUsername() : null
