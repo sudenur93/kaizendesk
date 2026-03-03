@@ -11,23 +11,23 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "comments")
-public class Comment {
+@Table(name = "attachments")
+public class Attachment {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 1000)
-    private String message;
-
     @ManyToOne
     @JoinColumn(name = "ticket_id")
     private Ticket ticket;
 
+    @Column(nullable = false)
+    private String fileUrl;
+
     @ManyToOne
-    @JoinColumn(name = "user_id")
-    private User user;
+    @JoinColumn(name = "uploaded_by_id")
+    private User uploadedBy;
 
     @Column(nullable = false)
     private Instant createdAt = Instant.now();
@@ -40,14 +40,6 @@ public class Comment {
         this.id = id;
     }
 
-    public String getMessage() {
-        return message;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
-    }
-
     public Ticket getTicket() {
         return ticket;
     }
@@ -56,12 +48,20 @@ public class Comment {
         this.ticket = ticket;
     }
 
-    public User getUser() {
-        return user;
+    public String getFileUrl() {
+        return fileUrl;
     }
 
-    public void setUser(User user) {
-        this.user = user;
+    public void setFileUrl(String fileUrl) {
+        this.fileUrl = fileUrl;
+    }
+
+    public User getUploadedBy() {
+        return uploadedBy;
+    }
+
+    public void setUploadedBy(User uploadedBy) {
+        this.uploadedBy = uploadedBy;
     }
 
     public Instant getCreatedAt() {

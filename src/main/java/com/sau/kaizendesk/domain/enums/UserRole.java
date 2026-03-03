@@ -1,7 +1,7 @@
 package com.sau.kaizendesk.domain.enums;
 
 public enum UserRole {
-    USER,
+    CUSTOMER,
     AGENT,
-    ADMIN
+    MANAGER
 }

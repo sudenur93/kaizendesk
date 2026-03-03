@@ -10,6 +10,7 @@ public class TicketResponse {
     private String description;
     private TicketPriority priority;
     private TicketStatus status;
+    private Long assignedAgentId;
     private String createdByUsername;
 
     public Long getId() {
@@ -50,6 +51,14 @@ public class TicketResponse {
 
     public void setStatus(TicketStatus status) {
         this.status = status;
+    }
+
+    public Long getAssignedAgentId() {
+        return assignedAgentId;
+    }
+
+    public void setAssignedAgentId(Long assignedAgentId) {
+        this.assignedAgentId = assignedAgentId;
     }
 
     public String getCreatedByUsername() {

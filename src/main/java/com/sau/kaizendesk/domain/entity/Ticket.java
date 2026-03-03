@@ -11,7 +11,11 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "tickets")
@@ -38,6 +42,31 @@ public class Ticket {
     @ManyToOne
     @JoinColumn(name = "created_by_id")
     private User createdBy;
+
+    @ManyToOne
+    @JoinColumn(name = "assigned_agent_id")
+    private User assignedAgent;
+
+    @OneToMany(mappedBy = "ticket")
+    private List<Comment> comments = new ArrayList<>();
+
+    @OneToMany(mappedBy = "ticket")
+    private List<Worklog> worklogs = new ArrayList<>();
+
+    @OneToMany(mappedBy = "ticket")
+    private List<Attachment> attachments = new ArrayList<>();
+
+    @Column(nullable = false)
+    private Instant createdAt = Instant.now();
+
+    @Column(nullable = false)
+    private Instant updatedAt = Instant.now();
+
+    @Column(name = "sla_target_at")
+    private Instant slaTargetAt;
+
+    @Column(name = "sla_breached", nullable = false)
+    private boolean slaBreached = false;
 
     public Long getId() {
         return id;
@@ -85,5 +114,69 @@ public class Ticket {
 
     public void setCreatedBy(User createdBy) {
         this.createdBy = createdBy;
+    }
+
+    public User getAssignedAgent() {
+        return assignedAgent;
+    }
+
+    public void setAssignedAgent(User assignedAgent) {
+        this.assignedAgent = assignedAgent;
+    }
+
+    public List<Comment> getComments() {
+        return comments;
+    }
+
+    public void setComments(List<Comment> comments) {
+        this.comments = comments;
+    }
+
+    public List<Worklog> getWorklogs() {
+        return worklogs;
+    }
+
+    public void setWorklogs(List<Worklog> worklogs) {
+        this.worklogs = worklogs;
+    }
+
+    public List<Attachment> getAttachments() {
+        return attachments;
+    }
+
+    public void setAttachments(List<Attachment> attachments) {
+        this.attachments = attachments;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public Instant getSlaTargetAt() {
+        return slaTargetAt;
+    }
+
+    public void setSlaTargetAt(Instant slaTargetAt) {
+        this.slaTargetAt = slaTargetAt;
+    }
+
+    public boolean isSlaBreached() {
+        return slaBreached;
+    }
+
+    public void setSlaBreached(boolean slaBreached) {
+        this.slaBreached = slaBreached;
     }
 }

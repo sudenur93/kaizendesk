@@ -1,12 +1,15 @@
 package com.sau.kaizendesk.controller;
 
 import com.sau.kaizendesk.domain.enums.TicketStatus;
+import com.sau.kaizendesk.dto.AssignAgentRequest;
 import com.sau.kaizendesk.dto.CreateTicketRequest;
 import com.sau.kaizendesk.dto.TicketResponse;
+import com.sau.kaizendesk.dto.UpdateStatusRequest;
 import com.sau.kaizendesk.service.TicketService;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,7 +31,8 @@ public class TicketController {
         this.ticketService = ticketService;
     }
 
-    @PostMapping("/")
+    @PreAuthorize("hasAnyRole('CUSTOMER','AGENT','MANAGER')")
+    @PostMapping
     public ResponseEntity<TicketResponse> createTicket(
             @Valid @RequestBody CreateTicketRequest request,
             @AuthenticationPrincipal Jwt jwt
@@ -38,21 +42,37 @@ public class TicketController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/")
-    public ResponseEntity<List<TicketResponse>> listTickets() {
-        return ResponseEntity.ok(ticketService.listTickets());
+    @PreAuthorize("hasAnyRole('CUSTOMER','AGENT','MANAGER')")
+    @GetMapping
+    public ResponseEntity<List<TicketResponse>> getAllTickets(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String priority,
+            @RequestParam(required = false) Long assignedTo
+    ) {
+        return ResponseEntity.ok(ticketService.getTickets(status, priority, assignedTo));
     }
 
+    @PreAuthorize("hasAnyRole('CUSTOMER','AGENT','MANAGER')")
     @GetMapping("/{id}")
-    public ResponseEntity<TicketResponse> getTicket(@PathVariable Long id) {
-        return ResponseEntity.ok(ticketService.getTicket(id));
+    public ResponseEntity<TicketResponse> getTicketById(@PathVariable Long id) {
+        return ResponseEntity.ok(ticketService.getTicketById(id));
     }
 
+    @PreAuthorize("hasAnyRole('AGENT','MANAGER')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<TicketResponse> updateTicketStatus(
             @PathVariable Long id,
-            @RequestParam TicketStatus status
+            @Valid @RequestBody UpdateStatusRequest request
     ) {
-        return ResponseEntity.ok(ticketService.updateStatus(id, status));
+        return ResponseEntity.ok(ticketService.updateStatus(id, request.getStatus()));
+    }
+
+    @PreAuthorize("hasAnyRole('AGENT','MANAGER')")
+    @PatchMapping("/{id}/assign")
+    public ResponseEntity<TicketResponse> assignAgent(
+            @PathVariable Long id,
+            @Valid @RequestBody AssignAgentRequest request
+    ) {
+        return ResponseEntity.ok(ticketService.assignAgent(id, request.getAgentId()));
     }
 }

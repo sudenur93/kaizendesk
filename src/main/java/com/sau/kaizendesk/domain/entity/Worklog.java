@@ -11,15 +11,12 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "comments")
-public class Comment {
+@Table(name = "worklogs")
+public class Worklog {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Column(nullable = false, length = 1000)
-    private String message;
 
     @ManyToOne
     @JoinColumn(name = "ticket_id")
@@ -30,6 +27,12 @@ public class Comment {
     private User user;
 
     @Column(nullable = false)
+    private Long timeSpent;
+
+    @Column(length = 1000)
+    private String note;
+
+    @Column(nullable = false)
     private Instant createdAt = Instant.now();
 
     public Long getId() {
@@ -38,14 +41,6 @@ public class Comment {
 
     public void setId(Long id) {
         this.id = id;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
     }
 
     public Ticket getTicket() {
@@ -62,6 +57,22 @@ public class Comment {
 
     public void setUser(User user) {
         this.user = user;
+    }
+
+    public Long getTimeSpent() {
+        return timeSpent;
+    }
+
+    public void setTimeSpent(Long timeSpent) {
+        this.timeSpent = timeSpent;
+    }
+
+    public String getNote() {
+        return note;
+    }
+
+    public void setNote(String note) {
+        this.note = note;
     }
 
     public Instant getCreatedAt() {
