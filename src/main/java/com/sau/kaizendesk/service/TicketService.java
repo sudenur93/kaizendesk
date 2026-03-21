@@ -134,7 +134,7 @@ public class TicketService {
     private Instant calculateSlaTargetAt(TicketPriority priority, Instant from) {
         long minutes;
         if (priority == null) {
-            minutes = 480; // varsayılan MEDIUM
+            minutes = 480; // varsayılan medium
         } else {
             switch (priority) {
                 case HIGH -> minutes = 240;

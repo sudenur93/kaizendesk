@@ -68,7 +68,7 @@ public class CommentService {
             response.setId(comment.getId());
             response.setTicketId(comment.getTicket().getId());
 
-            User user = comment.getUser();
+              User user = comment.getUser();
             if (user != null) {
                 response.setAuthorName(user.getName());
             }
