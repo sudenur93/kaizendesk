@@ -1,0 +1,34 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: "kaizendesk-api"
+          metrics_path: /actuator/prometheus
+          static_configs:
+            - targets: ["api:8081"]
+
+processors:
+  batch:
+
+exporters:
+  debug:
+    verbosity: normal
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/jaeger, debug]
+    metrics:
+      receivers: [prometheus]
+      processors: [batch]
+      exporters: [debug]
