@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +36,7 @@ public class TicketService {
         Instant now = Instant.now();
 
         Ticket ticket = new Ticket();
+        ticket.setTicketNo(generateTicketNo(now));
         ticket.setTitle(request.getTitle());
         ticket.setDescription(request.getDescription());
         ticket.setPriority(request.getPriority());
@@ -46,6 +48,12 @@ public class TicketService {
 
         Ticket savedTicket = ticketRepository.save(ticket);
         return mapToResponse(savedTicket);
+    }
+
+    private String generateTicketNo(Instant now) {
+        // human-friendly unique-ish ticket id
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase(Locale.ROOT);
+        return "KD-" + now.toEpochMilli() + "-" + suffix;
     }
 
     public List<TicketResponse> listTickets() {

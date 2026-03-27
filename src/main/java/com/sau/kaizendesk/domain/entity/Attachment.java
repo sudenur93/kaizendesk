@@ -22,14 +22,16 @@ public class Attachment {
     @JoinColumn(name = "ticket_id")
     private Ticket ticket;
 
-    @Column(nullable = false)
+    // Flyway migration şemasındaki karşılık alan: original_file_name
+    @Column(name = "original_file_name", nullable = false)
     private String fileUrl;
 
     @ManyToOne
-    @JoinColumn(name = "uploaded_by_id")
+    // Flyway migration şemasındaki karşılık alan: uploaded_by
+    @JoinColumn(name = "uploaded_by")
     private User uploadedBy;
 
-    @Column(nullable = false)
+    @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
     public Long getId() {

@@ -31,6 +31,7 @@ services:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
       KC_HTTP_PORT: 8080
+      # Hostname override kaldırıldı: UI localhost üzerinden açılacak
     ports:
       - "8081:8080"
     depends_on:
@@ -118,6 +119,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/kaizendesk
       SPRING_DATASOURCE_USERNAME: kaizen_user
       SPRING_DATASOURCE_PASSWORD: kaizen_pass
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8081/realms/kaizendesk
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/kaizendesk/protocol/openid-connect/certs
       MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
     volumes:

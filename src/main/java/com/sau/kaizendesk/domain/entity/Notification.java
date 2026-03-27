@@ -25,10 +25,11 @@ public class Notification {
     @Column(nullable = false, length = 1000)
     private String message;
 
-    @Column(nullable = false)
+    @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
-    @Column(nullable = false)
+    // Flyway şemasında is_read olarak geçiyor
+    @Column(name = "is_read", nullable = false)
     private boolean read;
 
     public Long getId() {

@@ -6,7 +6,7 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: none
     open-in-view: false
     properties:
       hibernate:
@@ -19,8 +19,10 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          # Container içinden Keycloak'a erişim (docker ağı: 'keycloak' hostname, 8080 portu)
-          issuer-uri: http://keycloak:8080/realms/kaizendesk
+          # Dev: token'ı genelde host üzerinden aldığımız için issuer buna göre olmalı
+          issuer-uri: http://localhost:8081/realms/kaizendesk
+          # API container içinden JWKS'e Keycloak servis adıyla eriş
+          jwk-set-uri: http://keycloak:8080/realms/kaizendesk/protocol/openid-connect/certs
 
 server:
   port: 8081

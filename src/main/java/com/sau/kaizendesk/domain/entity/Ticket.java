@@ -25,6 +25,9 @@ public class Ticket {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "ticket_no", nullable = false, unique = true, length = 50)
+    private String ticketNo;
+
     @Column(nullable = false)
     private String title;
 
@@ -40,11 +43,11 @@ public class Ticket {
     private TicketStatus status = TicketStatus.OPEN;
 
     @ManyToOne
-    @JoinColumn(name = "created_by_id")
+    @JoinColumn(name = "created_by")
     private User createdBy;
 
     @ManyToOne
-    @JoinColumn(name = "assigned_agent_id")
+    @JoinColumn(name = "assigned_to")
     private User assignedAgent;
 
     @OneToMany(mappedBy = "ticket")
@@ -74,6 +77,14 @@ public class Ticket {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getTicketNo() {
+        return ticketNo;
+    }
+
+    public void setTicketNo(String ticketNo) {
+        this.ticketNo = ticketNo;
     }
 
     public String getTitle() {

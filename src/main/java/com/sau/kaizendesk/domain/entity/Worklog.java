@@ -23,16 +23,17 @@ public class Worklog {
     private Ticket ticket;
 
     @ManyToOne
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "author_id")
     private User user;
 
-    @Column(nullable = false)
+    // Flyway migration şemasındaki karşılık: duration_minutes
+    @Column(name = "duration_minutes", nullable = false)
     private Long timeSpent;
 
     @Column(length = 1000)
     private String note;
 
-    @Column(nullable = false)
+    @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
     public Long getId() {

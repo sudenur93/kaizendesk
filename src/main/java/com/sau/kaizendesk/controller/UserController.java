@@ -23,7 +23,6 @@ public class UserController {
     @PreAuthorize("hasAnyRole('CUSTOMER','AGENT','MANAGER')")
     @GetMapping("/me")
     public ResponseEntity<UserResponse> getCurrentUser(@AuthenticationPrincipal Jwt jwt) {
-        String username = jwt.getClaimAsString("preferred_username");
-        return ResponseEntity.ok(userService.getCurrentUser(username));
+        return ResponseEntity.ok(userService.getCurrentUser(jwt));
     }
 }
