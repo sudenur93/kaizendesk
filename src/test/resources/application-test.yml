@@ -1,0 +1,15 @@
+# CI / yerel test: Testcontainers PostgreSQL; JwtDecoder @MockBean ile sağlanır
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8081/realms/kaizendesk
+          jwk-set-uri: http://localhost:8081/realms/kaizendesk/protocol/openid-connect/certs
+
+server:
+  port: 0
+
+management:
+  tracing:
+    enabled: false
