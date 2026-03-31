@@ -31,13 +31,13 @@ public class CommentService {
         this.userRepository = userRepository;
     }
 
-    @Transactional
-    public CommentResponse addComment(Long ticketId, CreateCommentRequest request) {
+	@Transactional
+	public CommentResponse addComment(Long ticketId, CreateCommentRequest request, String username) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + ticketId));
 
-        User author = userRepository.findById(1L)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: 1"));
+		User author = userRepository.findByUsername(username)
+				.orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
 
         Comment comment = new Comment();
         comment.setTicket(ticket);

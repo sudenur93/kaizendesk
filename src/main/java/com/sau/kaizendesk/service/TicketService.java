@@ -13,6 +13,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,12 +64,24 @@ public class TicketService {
                 .toList();
     }
 
-    public List<TicketResponse> getTickets(String status, String priority, Long assignedTo) {
+	public List<TicketResponse> getTickets(String status, String priority, Long assignedTo) {
+		// Eski imza: testler ve geriye dönük uyumluluk için korunuyor.
+		return getTickets(status, priority, assignedTo, null, false);
+	}
+
+	public List<TicketResponse> getTickets(
+			String status,
+			String priority,
+			Long assignedTo,
+			String username,
+			boolean isCustomer
+	) {
         return ticketRepository.findAll()
                 .stream()
                 .filter(ticket -> matchesStatus(ticket, status))
                 .filter(ticket -> matchesPriority(ticket, priority))
                 .filter(ticket -> matchesAssignedAgent(ticket, assignedTo))
+				.filter(ticket -> !isCustomer || isCreatedBy(ticket, username))
                 .map(this::mapToResponse)
                 .toList();
     }
@@ -79,8 +92,15 @@ public class TicketService {
         return mapToResponse(ticket);
     }
 
-    public TicketResponse getTicketById(Long id) {
-        return getTicket(id);
+	public TicketResponse getTicketByIdForUser(Long id, String username, boolean isCustomer) {
+		Ticket ticket = ticketRepository.findById(id)
+				.orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + id));
+
+		if (isCustomer && !isCreatedBy(ticket, username)) {
+			throw new AccessDeniedException("Bu ticket'a erişim yetkiniz yok");
+		}
+
+		return mapToResponse(ticket);
     }
 
     @Transactional
@@ -134,6 +154,12 @@ public class TicketService {
         }
         return ticket.getAssignedAgent() != null && assignedTo.equals(ticket.getAssignedAgent().getId());
     }
+
+	private boolean isCreatedBy(Ticket ticket, String username) {
+		return ticket.getCreatedBy() != null
+				&& ticket.getCreatedBy().getUsername() != null
+				&& ticket.getCreatedBy().getUsername().equals(username);
+	}
 
     private String normalizeEnum(String value) {
         return value.trim().toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_');

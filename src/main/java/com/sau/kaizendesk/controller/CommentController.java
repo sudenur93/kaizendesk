@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,9 +29,11 @@ public class CommentController {
     @PostMapping
     public ResponseEntity<CommentResponse> addComment(
             @PathVariable Long ticketId,
-            @Valid @RequestBody CreateCommentRequest request
+			@Valid @RequestBody CreateCommentRequest request,
+			JwtAuthenticationToken authentication
     ) {
-        return ResponseEntity.ok(commentService.addComment(ticketId, request));
+		String username = authentication.getToken().getClaimAsString("preferred_username");
+		return ResponseEntity.ok(commentService.addComment(ticketId, request, username));
     }
 
     @PreAuthorize("hasAnyRole('CUSTOMER','AGENT','MANAGER')")

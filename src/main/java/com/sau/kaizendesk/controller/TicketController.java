@@ -47,16 +47,38 @@ public class TicketController {
     public ResponseEntity<List<TicketResponse>> getAllTickets(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String priority,
-            @RequestParam(required = false) Long assignedTo
+			@RequestParam(required = false) Long assignedTo,
+			@AuthenticationPrincipal Jwt jwt
     ) {
-        return ResponseEntity.ok(ticketService.getTickets(status, priority, assignedTo));
+		String username = jwt.getClaimAsString("preferred_username");
+		boolean isCustomer = isCustomer(jwt);
+		return ResponseEntity.ok(ticketService.getTickets(status, priority, assignedTo, username, isCustomer));
     }
 
     @PreAuthorize("hasAnyRole('CUSTOMER','AGENT','MANAGER')")
     @GetMapping("/{id}")
-    public ResponseEntity<TicketResponse> getTicketById(@PathVariable Long id) {
-        return ResponseEntity.ok(ticketService.getTicketById(id));
+	public ResponseEntity<TicketResponse> getTicketById(
+			@PathVariable Long id,
+			@AuthenticationPrincipal Jwt jwt
+	) {
+		String username = jwt.getClaimAsString("preferred_username");
+		boolean isCustomer = isCustomer(jwt);
+		return ResponseEntity.ok(ticketService.getTicketByIdForUser(id, username, isCustomer));
     }
+
+	private boolean isCustomer(Jwt jwt) {
+		Object realmAccess = jwt.getClaim("realm_access");
+		if (!(realmAccess instanceof java.util.Map)) {
+			return false;
+		}
+		java.util.Map<?, ?> map = (java.util.Map<?, ?>) realmAccess;
+		Object rolesObj = map.get("roles");
+		if (!(rolesObj instanceof java.util.List)) {
+			return false;
+		}
+		java.util.List<?> roles = (java.util.List<?>) rolesObj;
+		return roles.contains("CUSTOMER");
+	}
 
     @PreAuthorize("hasAnyRole('AGENT','MANAGER')")
     @PatchMapping("/{id}/status")
