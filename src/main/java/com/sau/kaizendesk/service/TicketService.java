@@ -1,15 +1,22 @@
 package com.sau.kaizendesk.service;
 
+import com.sau.kaizendesk.domain.entity.Category;
+import com.sau.kaizendesk.domain.entity.IssueType;
+import com.sau.kaizendesk.domain.entity.Product;
 import com.sau.kaizendesk.domain.entity.Ticket;
 import com.sau.kaizendesk.domain.entity.User;
 import com.sau.kaizendesk.domain.enums.TicketPriority;
 import com.sau.kaizendesk.domain.enums.TicketStatus;
 import com.sau.kaizendesk.dto.CreateTicketRequest;
 import com.sau.kaizendesk.dto.TicketResponse;
+import com.sau.kaizendesk.repository.CategoryRepository;
+import com.sau.kaizendesk.repository.IssueTypeRepository;
+import com.sau.kaizendesk.repository.ProductRepository;
 import com.sau.kaizendesk.repository.TicketRepository;
 import com.sau.kaizendesk.repository.UserRepository;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -23,16 +30,50 @@ public class TicketService {
 
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
+    private final ProductRepository productRepository;
+    private final CategoryRepository categoryRepository;
+    private final IssueTypeRepository issueTypeRepository;
 
-    public TicketService(TicketRepository ticketRepository, UserRepository userRepository) {
+    public TicketService(
+            TicketRepository ticketRepository,
+            UserRepository userRepository,
+            ProductRepository productRepository,
+            CategoryRepository categoryRepository,
+            IssueTypeRepository issueTypeRepository
+    ) {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
+        this.productRepository = productRepository;
+        this.categoryRepository = categoryRepository;
+        this.issueTypeRepository = issueTypeRepository;
     }
 
     @Transactional
     public TicketResponse createTicket(CreateTicketRequest request, String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
+
+        Product product = productRepository.findById(request.getProductId())
+                .orElseThrow(() -> new IllegalArgumentException("Product not found: " + request.getProductId()));
+        Category category = categoryRepository.findById(request.getCategoryId())
+                .orElseThrow(() -> new IllegalArgumentException("Category not found: " + request.getCategoryId()));
+        if (category.getProduct() == null || !category.getProduct().getId().equals(product.getId())) {
+            throw new IllegalArgumentException("Category does not belong to selected product");
+        }
+
+        List<Long> distinctIssueIds = request.getIssueTypeIds().stream().distinct().toList();
+        List<IssueType> issueTypes = issueTypeRepository.findAllByIdIn(distinctIssueIds);
+        if (issueTypes.size() != distinctIssueIds.size()) {
+            throw new IllegalArgumentException("One or more issue types were not found");
+        }
+        for (IssueType issueType : issueTypes) {
+            if (!issueType.getCategory().getId().equals(category.getId())) {
+                throw new IllegalArgumentException("Issue type does not belong to selected category: " + issueType.getId());
+            }
+            if (!issueType.isActive()) {
+                throw new IllegalArgumentException("Issue type is not active: " + issueType.getId());
+            }
+        }
 
         Instant now = Instant.now();
 
@@ -42,6 +83,9 @@ public class TicketService {
         ticket.setDescription(request.getDescription());
         ticket.setPriority(request.getPriority());
         ticket.setStatus(TicketStatus.OPEN);
+        ticket.setProduct(product);
+        ticket.setCategory(category);
+        ticket.setIssueTypes(new HashSet<>(issueTypes));
         ticket.setCreatedBy(user);
         ticket.setCreatedAt(now);
         ticket.setUpdatedAt(now);
@@ -192,6 +236,15 @@ public class TicketService {
         response.setCreatedByUsername(
                 ticket.getCreatedBy() != null ? ticket.getCreatedBy().getUsername() : null
         );
+        response.setProductId(ticket.getProduct() != null ? ticket.getProduct().getId() : null);
+        response.setCategoryId(ticket.getCategory() != null ? ticket.getCategory().getId() : null);
+        if (ticket.getIssueTypes() != null && !ticket.getIssueTypes().isEmpty()) {
+            response.setIssueTypeIds(
+                    ticket.getIssueTypes().stream().map(IssueType::getId).sorted().toList()
+            );
+        } else {
+            response.setIssueTypeIds(List.of());
+        }
         return response;
     }
 }

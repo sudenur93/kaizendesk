@@ -2,13 +2,15 @@
 <Configuration status="WARN">
     <Properties>
         <Property name="serviceName">kaizendesk-api</Property>
+        <!-- Docker: set KAIZENDESK_LOG_FILE=/var/log/kaizendesk/application.log. Local/tests: default under java.io.tmpdir. -->
+        <Property name="logFile">${env:KAIZENDESK_LOG_FILE:-${sys:java.io.tmpdir}/kaizendesk-application.log}</Property>
     </Properties>
 
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
             <PatternLayout pattern="{&quot;timestamp&quot;:&quot;%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}&quot;,&quot;level&quot;:&quot;%p&quot;,&quot;serviceName&quot;:&quot;${serviceName}&quot;,&quot;traceId&quot;:&quot;%X{traceId:-}&quot;,&quot;spanId&quot;:&quot;%X{spanId:-}&quot;,&quot;logger&quot;:&quot;%c{1.}&quot;,&quot;thread&quot;:&quot;%t&quot;,&quot;message&quot;:&quot;%enc{%m}{JSON}&quot;,&quot;exception&quot;:&quot;%enc{%ex{short}}{JSON}&quot;}%n"/>
         </Console>
-        <File name="JsonFile" fileName="/var/log/kaizendesk/application.log" immediateFlush="true" append="true">
+        <File name="JsonFile" fileName="${logFile}" immediateFlush="true" append="true" createOnDemand="true">
             <PatternLayout pattern="{&quot;timestamp&quot;:&quot;%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}&quot;,&quot;level&quot;:&quot;%p&quot;,&quot;serviceName&quot;:&quot;${serviceName}&quot;,&quot;traceId&quot;:&quot;%X{traceId:-}&quot;,&quot;spanId&quot;:&quot;%X{spanId:-}&quot;,&quot;logger&quot;:&quot;%c{1.}&quot;,&quot;thread&quot;:&quot;%t&quot;,&quot;message&quot;:&quot;%enc{%m}{JSON}&quot;,&quot;exception&quot;:&quot;%enc{%ex{short}}{JSON}&quot;}%n"/>
         </File>
     </Appenders>

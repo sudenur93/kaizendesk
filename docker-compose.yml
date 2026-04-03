@@ -116,6 +116,7 @@ services:
       dockerfile: Dockerfile
     container_name: kaizendesk-api
     environment:
+      KAIZENDESK_LOG_FILE: /var/log/kaizendesk/application.log
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/kaizendesk
       SPRING_DATASOURCE_USERNAME: kaizen_user
       SPRING_DATASOURCE_PASSWORD: kaizen_pass
