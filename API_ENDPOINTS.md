@@ -16,6 +16,9 @@
 |12 | GET         | `/api/v1/tickets/{ticketId}/attachments`      | Ticket’a ait dosya eklerini listeler.                | `CUSTOMER`, `AGENT`, `MANAGER`    | JWT (Keycloak)   |
 |13 | GET         | `/api/v1/notifications`                       | Mevcut kullanıcının bildirimlerini listeler.         | `CUSTOMER`, `AGENT`, `MANAGER`    | JWT (Keycloak)   |
 |14 | GET         | `/api/v1/dashboard/summary`                   | Yönetici paneli için özet metrik/KPI bilgilerini getirir. | `MANAGER`                     | JWT (Keycloak)   |
+|15 | GET         | `/api/v1/products`                            | Aktif ürünleri listeler (dropdown için).             | `CUSTOMER`, `AGENT`, `MANAGER`    | JWT (Keycloak)   |
+|16 | GET         | `/api/v1/products/{productId}/categories`     | Ürüne ait kategorileri listeler.                     | `CUSTOMER`, `AGENT`, `MANAGER`    | JWT (Keycloak)   |
+|17 | GET         | `/api/v1/categories/{categoryId}/issue-types` | Kategoriye ait aktif sorun tiplerini listeler.       | `CUSTOMER`, `AGENT`, `MANAGER`    | JWT (Keycloak)   |
 
 > Not: Tüm endpoint’ler için istekler HTTPS üzerinden ve `Authorization: Bearer <JWT>` başlığı ile çağrılmalıdır. Roller, Keycloak realm rollerinden `ROLE_XXX` formatına map edilen Spring Security yetkileriyle kontrol edilir.
 

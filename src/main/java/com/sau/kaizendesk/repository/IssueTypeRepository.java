@@ -10,4 +10,6 @@ import org.springframework.stereotype.Repository;
 public interface IssueTypeRepository extends JpaRepository<IssueType, Long> {
 
     List<IssueType> findAllByIdIn(Collection<Long> ids);
+
+    List<IssueType> findByCategory_IdAndActiveTrueOrderByNameAsc(Long categoryId);
 }
