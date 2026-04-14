@@ -20,24 +20,33 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
+    private final TicketAccessService ticketAccessService;
 
     public CommentService(
             CommentRepository commentRepository,
             TicketRepository ticketRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            TicketAccessService ticketAccessService
     ) {
         this.commentRepository = commentRepository;
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
+        this.ticketAccessService = ticketAccessService;
     }
 
-	@Transactional
-	public CommentResponse addComment(Long ticketId, CreateCommentRequest request, String username) {
+    @Transactional
+    public CommentResponse addComment(
+            Long ticketId,
+            CreateCommentRequest request,
+            String username,
+            boolean isCustomer
+    ) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + ticketId));
+        ticketAccessService.requireAccessIfCustomer(ticket, username, isCustomer);
 
-		User author = userRepository.findByUsername(username)
-				.orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
+        User author = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
 
         Comment comment = new Comment();
         comment.setTicket(ticket);
@@ -56,9 +65,10 @@ public class CommentService {
         return response;
     }
 
-    public List<CommentResponse> getComments(Long ticketId) {
-        ticketRepository.findById(ticketId)
+    public List<CommentResponse> getComments(Long ticketId, String username, boolean isCustomer) {
+        Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + ticketId));
+        ticketAccessService.requireAccessIfCustomer(ticket, username, isCustomer);
 
         List<Comment> comments = commentRepository.findByTicketIdOrderByCreatedAtAsc(ticketId);
         List<CommentResponse> responses = new ArrayList<>();

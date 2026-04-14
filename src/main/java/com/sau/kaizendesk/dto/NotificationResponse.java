@@ -5,6 +5,9 @@ import java.time.Instant;
 public class NotificationResponse {
 
     private Long id;
+    private Long ticketId;
+    private String type;
+    private String title;
     private String message;
     private Instant createdAt;
     private boolean read;
@@ -15,6 +18,30 @@ public class NotificationResponse {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Long getTicketId() {
+        return ticketId;
+    }
+
+    public void setTicketId(Long ticketId) {
+        this.ticketId = ticketId;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
     }
 
     public String getMessage() {

@@ -1,6 +1,7 @@
 package com.sau.kaizendesk.controller;
 
 import com.sau.kaizendesk.dto.NotificationResponse;
+import com.sau.kaizendesk.security.JwtRealmRoles;
 import com.sau.kaizendesk.service.NotificationService;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +28,7 @@ public class NotificationController {
             @AuthenticationPrincipal Jwt jwt
     ) {
         String username = jwt.getClaimAsString("preferred_username");
-        return ResponseEntity.ok(notificationService.getUserNotifications(username));
+        return ResponseEntity.ok(
+                notificationService.getUserNotifications(username, JwtRealmRoles.isCustomer(jwt)));
     }
 }
