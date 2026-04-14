@@ -44,7 +44,7 @@ public class Ticket {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private TicketStatus status = TicketStatus.OPEN;
+    private TicketStatus status = TicketStatus.NEW;
 
     @ManyToOne
     @JoinColumn(name = "product_id")
@@ -90,6 +90,15 @@ public class Ticket {
 
     @Column(name = "sla_breached", nullable = false)
     private boolean slaBreached = false;
+
+    @Column(name = "resolution_note", columnDefinition = "TEXT")
+    private String resolutionNote;
+
+    @Column(name = "resolved_at")
+    private Instant resolvedAt;
+
+    @Column(name = "closed_at")
+    private Instant closedAt;
 
     public Long getId() {
         return id;
@@ -233,5 +242,29 @@ public class Ticket {
 
     public void setSlaBreached(boolean slaBreached) {
         this.slaBreached = slaBreached;
+    }
+
+    public String getResolutionNote() {
+        return resolutionNote;
+    }
+
+    public void setResolutionNote(String resolutionNote) {
+        this.resolutionNote = resolutionNote;
+    }
+
+    public Instant getResolvedAt() {
+        return resolvedAt;
+    }
+
+    public void setResolvedAt(Instant resolvedAt) {
+        this.resolvedAt = resolvedAt;
+    }
+
+    public Instant getClosedAt() {
+        return closedAt;
+    }
+
+    public void setClosedAt(Instant closedAt) {
+        this.closedAt = closedAt;
     }
 }

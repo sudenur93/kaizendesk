@@ -2,6 +2,7 @@ package com.sau.kaizendesk.dto;
 
 import com.sau.kaizendesk.domain.enums.TicketPriority;
 import com.sau.kaizendesk.domain.enums.TicketStatus;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,6 +18,12 @@ public class TicketResponse {
     private Long productId;
     private Long categoryId;
     private List<Long> issueTypeIds = new ArrayList<>();
+    private String resolutionNote;
+    private Instant resolvedAt;
+    private Instant closedAt;
+    private Instant slaTargetAt;
+    private boolean slaBreached;
+    private boolean slaAtRisk;
 
     public Long getId() {
         return id;
@@ -96,5 +103,53 @@ public class TicketResponse {
 
     public void setIssueTypeIds(List<Long> issueTypeIds) {
         this.issueTypeIds = issueTypeIds;
+    }
+
+    public String getResolutionNote() {
+        return resolutionNote;
+    }
+
+    public void setResolutionNote(String resolutionNote) {
+        this.resolutionNote = resolutionNote;
+    }
+
+    public Instant getResolvedAt() {
+        return resolvedAt;
+    }
+
+    public void setResolvedAt(Instant resolvedAt) {
+        this.resolvedAt = resolvedAt;
+    }
+
+    public Instant getClosedAt() {
+        return closedAt;
+    }
+
+    public void setClosedAt(Instant closedAt) {
+        this.closedAt = closedAt;
+    }
+
+    public Instant getSlaTargetAt() {
+        return slaTargetAt;
+    }
+
+    public void setSlaTargetAt(Instant slaTargetAt) {
+        this.slaTargetAt = slaTargetAt;
+    }
+
+    public boolean isSlaBreached() {
+        return slaBreached;
+    }
+
+    public void setSlaBreached(boolean slaBreached) {
+        this.slaBreached = slaBreached;
+    }
+
+    public boolean isSlaAtRisk() {
+        return slaAtRisk;
+    }
+
+    public void setSlaAtRisk(boolean slaAtRisk) {
+        this.slaAtRisk = slaAtRisk;
     }
 }

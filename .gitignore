@@ -32,3 +32,6 @@ build/
 ### VS Code ###
 .vscode/
 .DS_Store
+
+# Yerel ek dosya kökü (application.yml varsayılanı)
+/data/
