@@ -22,12 +22,22 @@ public class Attachment {
     @JoinColumn(name = "ticket_id")
     private Ticket ticket;
 
-    // Flyway migration şemasındaki karşılık alan: original_file_name
     @Column(name = "original_file_name", nullable = false)
-    private String fileUrl;
+    private String originalFileName;
+
+    @Column(name = "stored_file_name", nullable = false)
+    private String storedFileName;
+
+    @Column(name = "content_type")
+    private String contentType;
+
+    @Column(name = "file_size_bytes", nullable = false)
+    private long fileSizeBytes;
+
+    @Column(name = "kind", length = 50)
+    private String kind;
 
     @ManyToOne
-    // Flyway migration şemasındaki karşılık alan: uploaded_by
     @JoinColumn(name = "uploaded_by")
     private User uploadedBy;
 
@@ -50,12 +60,44 @@ public class Attachment {
         this.ticket = ticket;
     }
 
-    public String getFileUrl() {
-        return fileUrl;
+    public String getOriginalFileName() {
+        return originalFileName;
     }
 
-    public void setFileUrl(String fileUrl) {
-        this.fileUrl = fileUrl;
+    public void setOriginalFileName(String originalFileName) {
+        this.originalFileName = originalFileName;
+    }
+
+    public String getStoredFileName() {
+        return storedFileName;
+    }
+
+    public void setStoredFileName(String storedFileName) {
+        this.storedFileName = storedFileName;
+    }
+
+    public String getContentType() {
+        return contentType;
+    }
+
+    public void setContentType(String contentType) {
+        this.contentType = contentType;
+    }
+
+    public long getFileSizeBytes() {
+        return fileSizeBytes;
+    }
+
+    public void setFileSizeBytes(long fileSizeBytes) {
+        this.fileSizeBytes = fileSizeBytes;
+    }
+
+    public String getKind() {
+        return kind;
+    }
+
+    public void setKind(String kind) {
+        this.kind = kind;
     }
 
     public User getUploadedBy() {

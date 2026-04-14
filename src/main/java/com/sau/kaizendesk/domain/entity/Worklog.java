@@ -9,6 +9,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "worklogs")
@@ -26,11 +27,13 @@ public class Worklog {
     @JoinColumn(name = "author_id")
     private User user;
 
-    // Flyway migration şemasındaki karşılık: duration_minutes
-    @Column(name = "duration_minutes", nullable = false)
-    private Long timeSpent;
+    @Column(name = "work_date", nullable = false)
+    private LocalDate workDate;
 
-    @Column(length = 1000)
+    @Column(name = "duration_minutes", nullable = false)
+    private int durationMinutes;
+
+    @Column(columnDefinition = "TEXT")
     private String note;
 
     @Column(name = "created_at", nullable = false)
@@ -60,12 +63,20 @@ public class Worklog {
         this.user = user;
     }
 
-    public Long getTimeSpent() {
-        return timeSpent;
+    public LocalDate getWorkDate() {
+        return workDate;
     }
 
-    public void setTimeSpent(Long timeSpent) {
-        this.timeSpent = timeSpent;
+    public void setWorkDate(LocalDate workDate) {
+        this.workDate = workDate;
+    }
+
+    public int getDurationMinutes() {
+        return durationMinutes;
+    }
+
+    public void setDurationMinutes(int durationMinutes) {
+        this.durationMinutes = durationMinutes;
     }
 
     public String getNote() {

@@ -7,6 +7,8 @@ import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,9 +30,11 @@ public class WorklogController {
     @PostMapping
     public ResponseEntity<WorklogResponse> addWorklog(
             @PathVariable Long ticketId,
-            @Valid @RequestBody CreateWorklogRequest request
+            @Valid @RequestBody CreateWorklogRequest request,
+            @AuthenticationPrincipal Jwt jwt
     ) {
-        return ResponseEntity.ok(worklogService.addWorklog(ticketId, request));
+        String username = jwt.getClaimAsString("preferred_username");
+        return ResponseEntity.ok(worklogService.addWorklog(ticketId, request, username));
     }
 
     @PreAuthorize("hasAnyRole('AGENT','MANAGER')")
