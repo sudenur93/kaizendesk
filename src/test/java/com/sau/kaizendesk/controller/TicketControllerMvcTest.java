@@ -68,7 +68,7 @@ class TicketControllerMvcTest {
 
 	@Test
 	void getTickets_asCustomer_returns200() throws Exception {
-		when(ticketService.getTickets(isNull(), isNull(), isNull(), eq("alice"), eq(true)))
+		when(ticketService.getTickets(isNull(), isNull(), isNull(), eq("alice"), eq(true), isNull()))
 				.thenReturn(List.of());
 
 		mockMvc.perform(get("/api/v1/tickets")
@@ -93,7 +93,7 @@ class TicketControllerMvcTest {
 		TicketResponse saved = new TicketResponse();
 		saved.setId(42L);
 		saved.setTitle(req.getTitle());
-		saved.setStatus(TicketStatus.OPEN);
+		saved.setStatus(TicketStatus.NEW);
 
 		when(ticketService.createTicket(any(CreateTicketRequest.class), eq("alice")))
 				.thenReturn(saved);

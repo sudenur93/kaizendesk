@@ -1,10 +1,10 @@
 package com.sau.kaizendesk.controller;
 
-import com.sau.kaizendesk.domain.enums.TicketStatus;
 import com.sau.kaizendesk.dto.AssignAgentRequest;
 import com.sau.kaizendesk.dto.CreateTicketRequest;
 import com.sau.kaizendesk.dto.TicketResponse;
 import com.sau.kaizendesk.dto.UpdateStatusRequest;
+import com.sau.kaizendesk.security.JwtRealmRoles;
 import com.sau.kaizendesk.service.TicketService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -47,12 +47,14 @@ public class TicketController {
     public ResponseEntity<List<TicketResponse>> getAllTickets(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String priority,
-			@RequestParam(required = false) Long assignedTo,
-			@AuthenticationPrincipal Jwt jwt
+            @RequestParam(required = false) Long assignedTo,
+            @RequestParam(required = false) String q,
+            @AuthenticationPrincipal Jwt jwt
     ) {
-		String username = jwt.getClaimAsString("preferred_username");
-		boolean isCustomer = isCustomer(jwt);
-		return ResponseEntity.ok(ticketService.getTickets(status, priority, assignedTo, username, isCustomer));
+        String username = jwt.getClaimAsString("preferred_username");
+        boolean isCustomer = JwtRealmRoles.isCustomer(jwt);
+        return ResponseEntity.ok(
+                ticketService.getTickets(status, priority, assignedTo, username, isCustomer, q));
     }
 
     @PreAuthorize("hasAnyRole('CUSTOMER','AGENT','MANAGER')")
@@ -62,23 +64,9 @@ public class TicketController {
 			@AuthenticationPrincipal Jwt jwt
 	) {
 		String username = jwt.getClaimAsString("preferred_username");
-		boolean isCustomer = isCustomer(jwt);
+		boolean isCustomer = JwtRealmRoles.isCustomer(jwt);
 		return ResponseEntity.ok(ticketService.getTicketByIdForUser(id, username, isCustomer));
     }
-
-	private boolean isCustomer(Jwt jwt) {
-		Object realmAccess = jwt.getClaim("realm_access");
-		if (!(realmAccess instanceof java.util.Map)) {
-			return false;
-		}
-		java.util.Map<?, ?> map = (java.util.Map<?, ?>) realmAccess;
-		Object rolesObj = map.get("roles");
-		if (!(rolesObj instanceof java.util.List)) {
-			return false;
-		}
-		java.util.List<?> roles = (java.util.List<?>) rolesObj;
-		return roles.contains("CUSTOMER");
-	}
 
     @PreAuthorize("hasAnyRole('AGENT','MANAGER')")
     @PatchMapping("/{id}/status")
@@ -86,7 +74,9 @@ public class TicketController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateStatusRequest request
     ) {
-        return ResponseEntity.ok(ticketService.updateStatus(id, request.getStatus()));
+        return ResponseEntity.ok(
+                ticketService.updateStatus(id, request.getStatus(), request.getResolutionNote())
+        );
     }
 
     @PreAuthorize("hasAnyRole('AGENT','MANAGER')")
