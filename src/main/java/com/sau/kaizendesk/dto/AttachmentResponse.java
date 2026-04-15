@@ -1,6 +1,7 @@
 package com.sau.kaizendesk.dto;
 
 import java.time.Instant;
+import java.util.List;
 
 public class AttachmentResponse {
 
@@ -11,6 +12,7 @@ public class AttachmentResponse {
     private Long fileSizeBytes;
     private Long uploadedBy;
     private Instant createdAt;
+    private List<String> detectedLogKeywords;
 
     public Long getId() {
         return id;
@@ -66,5 +68,13 @@ public class AttachmentResponse {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public List<String> getDetectedLogKeywords() {
+        return detectedLogKeywords;
+    }
+
+    public void setDetectedLogKeywords(List<String> detectedLogKeywords) {
+        this.detectedLogKeywords = detectedLogKeywords;
     }
 }

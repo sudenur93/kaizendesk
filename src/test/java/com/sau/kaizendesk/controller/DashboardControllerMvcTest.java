@@ -72,7 +72,10 @@ class DashboardControllerMvcTest {
         body.setProductCounts(Map.of("ERP", 12L, "CRM", 8L));
         body.setAgentPerformances(List.of(ap));
 
-        when(dashboardService.getSummary()).thenReturn(body);
+        body.setSlaComplianceRate(85.7);
+        body.setClosedInRange(2);
+
+        when(dashboardService.getSummary(null, null)).thenReturn(body);
 
         mockMvc.perform(get("/api/v1/dashboard/summary")
                         .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_MANAGER"))))
@@ -90,6 +93,8 @@ class DashboardControllerMvcTest {
                 .andExpect(jsonPath("$.productCounts.ERP").value(12))
                 .andExpect(jsonPath("$.agentPerformances[0].agentId").value(5))
                 .andExpect(jsonPath("$.agentPerformances[0].assignedCount").value(8))
-                .andExpect(jsonPath("$.agentPerformances[0].avgResolutionMinutes").value(120));
+                .andExpect(jsonPath("$.agentPerformances[0].avgResolutionMinutes").value(120))
+                .andExpect(jsonPath("$.slaComplianceRate").value(85.7))
+                .andExpect(jsonPath("$.closedInRange").value(2));
     }
 }

@@ -13,7 +13,9 @@ public class DashboardSummaryResponse {
     private long closedTickets;
 
     private long slaBreachedCount;
+    private double slaComplianceRate;
     private long closedToday;
+    private long closedInRange;
     private Long avgResolutionMinutes;
 
     private Map<String, Long> statusCounts;
@@ -78,12 +80,28 @@ public class DashboardSummaryResponse {
         this.slaBreachedCount = slaBreachedCount;
     }
 
+    public double getSlaComplianceRate() {
+        return slaComplianceRate;
+    }
+
+    public void setSlaComplianceRate(double slaComplianceRate) {
+        this.slaComplianceRate = slaComplianceRate;
+    }
+
     public long getClosedToday() {
         return closedToday;
     }
 
     public void setClosedToday(long closedToday) {
         this.closedToday = closedToday;
+    }
+
+    public long getClosedInRange() {
+        return closedInRange;
+    }
+
+    public void setClosedInRange(long closedInRange) {
+        this.closedInRange = closedInRange;
     }
 
     public Long getAvgResolutionMinutes() {

@@ -41,6 +41,9 @@ public class Attachment {
     @JoinColumn(name = "uploaded_by")
     private User uploadedBy;
 
+    @Column(name = "detected_log_keywords", length = 500)
+    private String detectedLogKeywords;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
@@ -114,5 +117,13 @@ public class Attachment {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getDetectedLogKeywords() {
+        return detectedLogKeywords;
+    }
+
+    public void setDetectedLogKeywords(String detectedLogKeywords) {
+        this.detectedLogKeywords = detectedLogKeywords;
     }
 }

@@ -12,6 +12,7 @@ import com.sau.kaizendesk.repository.UserRepository;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -67,6 +68,15 @@ public class AttachmentService {
         String ext = AttachmentMimeRules.extensionFromOriginalName(file.getOriginalFilename());
         String storedName = UUID.randomUUID().toString().toLowerCase(Locale.ROOT) + ext;
 
+        List<String> logKeywords = List.of();
+        if (AttachmentMimeRules.isTextFile(file.getOriginalFilename())) {
+            try (InputStream scan = file.getInputStream()) {
+                logKeywords = AttachmentMimeRules.findLogKeywords(scan);
+            } catch (IOException e) {
+                throw new IllegalStateException("Failed to scan text attachment", e);
+            }
+        }
+
         try (InputStream in = file.getInputStream()) {
             attachmentFileStorage.store(ticketId, storedName, in);
         } catch (IOException e) {
@@ -81,6 +91,9 @@ public class AttachmentService {
         row.setFileSizeBytes(file.getSize());
         row.setUploadedBy(uploader);
         row.setCreatedAt(Instant.now());
+        if (!logKeywords.isEmpty()) {
+            row.setDetectedLogKeywords(String.join(",", logKeywords));
+        }
 
         return toResponse(attachmentRepository.save(row));
     }
@@ -129,6 +142,9 @@ public class AttachmentService {
         r.setFileSizeBytes(a.getFileSizeBytes());
         r.setUploadedBy(a.getUploadedBy() != null ? a.getUploadedBy().getId() : null);
         r.setCreatedAt(a.getCreatedAt());
+        if (StringUtils.hasText(a.getDetectedLogKeywords())) {
+            r.setDetectedLogKeywords(Arrays.asList(a.getDetectedLogKeywords().split(",")));
+        }
         return r;
     }
 }

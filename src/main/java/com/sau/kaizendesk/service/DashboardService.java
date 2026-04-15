@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +27,10 @@ public class DashboardService {
         this.ticketRepository = ticketRepository;
     }
 
-    public DashboardSummaryResponse getSummary() {
+    private static final Set<TicketStatus> DONE_STATUSES =
+            Set.of(TicketStatus.RESOLVED, TicketStatus.CLOSED);
+
+    public DashboardSummaryResponse getSummary(LocalDate from, LocalDate to) {
         List<Ticket> all = ticketRepository.findAll();
 
         DashboardSummaryResponse resp = new DashboardSummaryResponse();
@@ -71,11 +75,26 @@ public class DashboardService {
         long slaBreached = all.stream().filter(Ticket::isSlaBreached).count();
         resp.setSlaBreachedCount(slaBreached);
 
+        long doneTotal = all.stream().filter(t -> DONE_STATUSES.contains(t.getStatus())).count();
+        long doneAndNotBreached = all.stream()
+                .filter(t -> DONE_STATUSES.contains(t.getStatus()) && !t.isSlaBreached())
+                .count();
+        resp.setSlaComplianceRate(doneTotal == 0 ? 100.0 : Math.round(doneAndNotBreached * 1000.0 / doneTotal) / 10.0);
+
         Instant startOfToday = LocalDate.now(ZoneOffset.UTC).atStartOfDay().toInstant(ZoneOffset.UTC);
         long closedToday = all.stream()
                 .filter(t -> t.getClosedAt() != null && t.getClosedAt().isAfter(startOfToday))
                 .count();
         resp.setClosedToday(closedToday);
+
+        Instant rangeStart = from != null ? from.atStartOfDay().toInstant(ZoneOffset.UTC) : null;
+        Instant rangeEnd = to != null ? to.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC) : null;
+        long closedInRange = all.stream()
+                .filter(t -> t.getClosedAt() != null)
+                .filter(t -> rangeStart == null || !t.getClosedAt().isBefore(rangeStart))
+                .filter(t -> rangeEnd == null || t.getClosedAt().isBefore(rangeEnd))
+                .count();
+        resp.setClosedInRange(closedInRange);
 
         all.stream()
                 .filter(t -> t.getResolvedAt() != null)
