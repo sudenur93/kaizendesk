@@ -9,11 +9,21 @@ public class CreateCommentRequest {
     @Size(max = 1000)
     private String message;
 
+    private boolean internal;
+
     public String getMessage() {
         return message;
     }
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public boolean isInternal() {
+        return internal;
+    }
+
+    public void setInternal(boolean internal) {
+        this.internal = internal;
     }
 }

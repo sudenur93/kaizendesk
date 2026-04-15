@@ -21,6 +21,9 @@ public class Comment {
     @Column(name = "content", nullable = false, length = 1000)
     private String message;
 
+    @Column(name = "type", nullable = false, length = 30)
+    private String type = "EXTERNAL";
+
     @ManyToOne
     @JoinColumn(name = "ticket_id")
     private Ticket ticket;
@@ -62,6 +65,18 @@ public class Comment {
 
     public void setUser(User user) {
         this.user = user;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public boolean isInternal() {
+        return "INTERNAL".equals(type);
     }
 
     public Instant getCreatedAt() {

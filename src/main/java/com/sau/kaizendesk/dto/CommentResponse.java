@@ -8,6 +8,7 @@ public class CommentResponse {
     private Long ticketId;
     private String authorName;
     private String message;
+    private boolean internal;
     private Instant createdAt;
 
     public Long getId() {
@@ -40,6 +41,14 @@ public class CommentResponse {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public boolean isInternal() {
+        return internal;
+    }
+
+    public void setInternal(boolean internal) {
+        this.internal = internal;
     }
 
     public Instant getCreatedAt() {
