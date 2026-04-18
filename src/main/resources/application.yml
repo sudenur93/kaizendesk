@@ -28,6 +28,13 @@ spring:
           # API container içinden JWKS'e Keycloak servis adıyla eriş
           jwk-set-uri: http://keycloak:8080/realms/kaizendesk/protocol/openid-connect/certs
 
+  mail:
+    host: mailhog
+    port: 1025
+    properties:
+      mail.smtp.auth: false
+      mail.smtp.starttls.enable: false
+
 kaizendesk:
   attachments:
     directory: ${KAIZENDESK_ATTACHMENTS_DIR:./data/attachments}

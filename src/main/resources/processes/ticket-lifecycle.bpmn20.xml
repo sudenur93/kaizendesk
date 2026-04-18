@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+             id="Definitions_TicketLifecycle"
+             targetNamespace="http://kaizendesk.sau.com/bpmn"
+             exporter="KaizenDesk"
+             exporterVersion="1.0">
+
+  <process id="ticketLifecycleProcess"
+           name="Ticket Yaşam Döngüsü"
+           isExecutable="true">
+
+    <!-- ================= START ================= -->
+    <startEvent id="startEvent" name="Ticket Talebi Başlatıldı"/>
+
+    <sequenceFlow id="flow_start_create" sourceRef="startEvent" targetRef="taskCreateTicket"/>
+
+    <!-- 1. Ticket Oluştur (Customer Portal) -->
+    <userTask id="taskCreateTicket"
+              name="Ticket Oluştur (Customer Portal)">
+      <documentation>
+        Müşteri portal üzerinden yeni ticket açar.
+        Ürün seçimi, özet, detay açıklama ve öncelik bilgisi girilir.
+        Log dosyası veya ekran görüntüsü eklenebilir.
+      </documentation>
+    </userTask>
+
+    <sequenceFlow id="flow_create_sla" sourceRef="taskCreateTicket" targetRef="taskCalculateSla"/>
+
+    <!-- 2. Öncelik ve SLA Hesapla (Service Task - otomatik) -->
+    <serviceTask id="taskCalculateSla"
+                 name="Öncelik ve SLA Hesapla">
+      <documentation>
+        Ticket önceliğine göre sla_policies tablosundan hedef dakika alınır.
+        slaTargetAt = createdAt + hedefDakika hesaplanır.
+        HIGH=240dk, MEDIUM=480dk, LOW=1440dk.
+      </documentation>
+    </serviceTask>
+
+    <sequenceFlow id="flow_sla_assign" sourceRef="taskCalculateSla" targetRef="taskAssignAgent"/>
+
+    <!-- 3. Ticket Atama (Agent / Manager) -->
+    <userTask id="taskAssignAgent"
+              name="Ticket Atama (Agent / Manager)">
+      <documentation>
+        AGENT veya MANAGER rolündeki kullanıcı ticket'ı bir destek personeline atar.
+        Atama yapıldığında statü otomatik olarak NEW → IN_PROGRESS'e geçer.
+      </documentation>
+    </userTask>
+
+    <sequenceFlow id="flow_assign_investigate" sourceRef="taskAssignAgent" targetRef="taskInvestigate"/>
+
+    <!-- 4. Ticket İncele ve Çalış (IN_PROGRESS) -->
+    <userTask id="taskInvestigate"
+              name="Ticket İncele ve Çalış (IN_PROGRESS)">
+      <documentation>
+        Atanan ajan ticket üzerinde çalışır.
+        Worklog kaydı tutabilir (tarih, süre, açıklama).
+        Internal not ekleyerek ekip içi iletişim sağlar.
+      </documentation>
+    </userTask>
+
+    <!-- SLA Timer - süre aşımı kontrolü -->
+    <boundaryEvent id="slaTimer" attachedToRef="taskInvestigate" cancelActivity="false">
+      <documentation>
+        SLA hedef süresine yaklaşıldığında (son %20) SLA_AT_RISK bildirimi üretilir.
+        Süre tamamen dolduğunda slaBreached=true olarak işaretlenir ve SLA_BREACHED bildirimi gönderilir.
+      </documentation>
+      <timerEventDefinition>
+        <timeDuration>PT${slaTargetMinutes}M</timeDuration>
+      </timerEventDefinition>
+    </boundaryEvent>
+
+    <sequenceFlow id="flow_sla_expired" sourceRef="slaTimer" targetRef="taskSlaBreached"/>
+
+    <serviceTask id="taskSlaBreached" name="SLA İhlal Bildirimi">
+      <documentation>
+        slaBreached flag'i set edilir.
+        Yöneticiye ve atanan ajana bildirim gönderilir.
+      </documentation>
+    </serviceTask>
+
+    <sequenceFlow id="flow_investigate_gateway" sourceRef="taskInvestigate" targetRef="gatewayNeedInfo"/>
+
+    <!-- 5. Gateway: Ek Bilgi Gerekli mi? -->
+    <exclusiveGateway id="gatewayNeedInfo" name="Ek Bilgi Gerekli mi?"/>
+
+    <!-- EVET → Müşteriden Bilgi İste -->
+    <sequenceFlow id="flow_needInfo_yes" sourceRef="gatewayNeedInfo" targetRef="taskWaitCustomer">
+      <conditionExpression xsi:type="tFormalExpression">#{needMoreInfo == true}</conditionExpression>
+    </sequenceFlow>
+
+    <!-- HAYIR → Çözüm Sağla -->
+    <sequenceFlow id="flow_needInfo_no" sourceRef="gatewayNeedInfo" targetRef="taskResolve">
+      <conditionExpression xsi:type="tFormalExpression">#{needMoreInfo == false}</conditionExpression>
+    </sequenceFlow>
+
+    <!-- 5a. Müşteriden Bilgi İste (WAITING_FOR_CUSTOMER) -->
+    <userTask id="taskWaitCustomer"
+              name="Müşteriden Bilgi İste (WAITING FOR CUSTOMER)">
+      <documentation>
+        Ajan, müşteriden ek bilgi/dosya talep eder.
+        External yorum olarak müşteriye iletilir.
+        Statü: WAITING_FOR_CUSTOMER.
+      </documentation>
+    </userTask>
+
+    <sequenceFlow id="flow_wait_respond" sourceRef="taskWaitCustomer" targetRef="taskCustomerRespond"/>
+
+    <!-- 5b. Müşteri Yanıtlar -->
+    <userTask id="taskCustomerRespond"
+              name="Müşteri Yanıtlar (Ek / Açıklama)">
+      <documentation>
+        Müşteri external yorum veya ek dosya ile yanıt verir.
+        Yanıt sonrası ticket tekrar IN_PROGRESS'e döner.
+      </documentation>
+    </userTask>
+
+    <sequenceFlow id="flow_respond_investigate" sourceRef="taskCustomerRespond" targetRef="taskInvestigate"/>
+
+    <!-- 6. Çözüm Sağla (RESOLVED) -->
+    <userTask id="taskResolve"
+              name="Çözüm Sağla (RESOLVED)">
+      <documentation>
+        Ajan çözüm notunu (resolutionNote) yazar - bu alan zorunludur.
+        resolvedAt zamanı kaydedilir.
+        Müşteriye ve yöneticiye bildirim gönderilir.
+        Statü: RESOLVED.
+      </documentation>
+    </userTask>
+
+    <sequenceFlow id="flow_resolve_close" sourceRef="taskResolve" targetRef="taskClose"/>
+
+    <!-- 7. Ticket Kapat (CLOSED) -->
+    <userTask id="taskClose"
+              name="Ticket Kapat (CLOSED)">
+      <documentation>
+        Yalnızca RESOLVED statüsündeki ticket kapatılabilir.
+        closedAt zamanı kaydedilir.
+        AGENT veya MANAGER tarafından yapılır.
+        Statü: CLOSED.
+      </documentation>
+    </userTask>
+
+    <sequenceFlow id="flow_close_end" sourceRef="taskClose" targetRef="endEvent"/>
+
+    <!-- ================= END ================= -->
+    <endEvent id="endEvent" name="Süreç Tamamlandı"/>
+
+  </process>
+
+  <!-- ================= DIAGRAM ================= -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_ticketLifecycle">
+    <bpmndi:BPMNPlane id="BPMNPlane_ticketLifecycle" bpmnElement="ticketLifecycleProcess">
+
+      <bpmndi:BPMNShape id="shape_start" bpmnElement="startEvent">
+        <dc:Bounds x="100" y="100" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_createTicket" bpmnElement="taskCreateTicket">
+        <dc:Bounds x="60" y="200" width="160" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_calculateSla" bpmnElement="taskCalculateSla">
+        <dc:Bounds x="60" y="340" width="160" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_assignAgent" bpmnElement="taskAssignAgent">
+        <dc:Bounds x="60" y="480" width="160" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_investigate" bpmnElement="taskInvestigate">
+        <dc:Bounds x="280" y="480" width="160" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_slaTimer" bpmnElement="slaTimer">
+        <dc:Bounds x="420" y="500" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_slaBreached" bpmnElement="taskSlaBreached">
+        <dc:Bounds x="500" y="480" width="160" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_gateway" bpmnElement="gatewayNeedInfo" isMarkerVisible="true">
+        <dc:Bounds x="340" y="620" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_waitCustomer" bpmnElement="taskWaitCustomer">
+        <dc:Bounds x="500" y="700" width="200" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_customerRespond" bpmnElement="taskCustomerRespond">
+        <dc:Bounds x="760" y="700" width="180" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_resolve" bpmnElement="taskResolve">
+        <dc:Bounds x="500" y="300" width="160" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_close" bpmnElement="taskClose">
+        <dc:Bounds x="500" y="140" width="160" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_end" bpmnElement="endEvent">
+        <dc:Bounds x="730" y="162" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Sequence Flow edges -->
+      <bpmndi:BPMNEdge id="edge_start_create" bpmnElement="flow_start_create">
+        <di:waypoint x="118" y="136"/>
+        <di:waypoint x="118" y="200"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_create_sla" bpmnElement="flow_create_sla">
+        <di:waypoint x="140" y="280"/>
+        <di:waypoint x="140" y="340"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_sla_assign" bpmnElement="flow_sla_assign">
+        <di:waypoint x="140" y="420"/>
+        <di:waypoint x="140" y="480"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_assign_investigate" bpmnElement="flow_assign_investigate">
+        <di:waypoint x="220" y="520"/>
+        <di:waypoint x="280" y="520"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_investigate_gateway" bpmnElement="flow_investigate_gateway">
+        <di:waypoint x="360" y="560"/>
+        <di:waypoint x="365" y="620"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_needInfo_yes" bpmnElement="flow_needInfo_yes">
+        <di:waypoint x="390" y="645"/>
+        <di:waypoint x="500" y="740"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_needInfo_no" bpmnElement="flow_needInfo_no">
+        <di:waypoint x="365" y="620"/>
+        <di:waypoint x="580" y="380"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_wait_respond" bpmnElement="flow_wait_respond">
+        <di:waypoint x="700" y="740"/>
+        <di:waypoint x="760" y="740"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_respond_investigate" bpmnElement="flow_respond_investigate">
+        <di:waypoint x="850" y="700"/>
+        <di:waypoint x="360" y="560"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_resolve_close" bpmnElement="flow_resolve_close">
+        <di:waypoint x="580" y="300"/>
+        <di:waypoint x="580" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_close_end" bpmnElement="flow_close_end">
+        <di:waypoint x="660" y="180"/>
+        <di:waypoint x="730" y="180"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</definitions>

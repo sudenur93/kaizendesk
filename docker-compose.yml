@@ -31,12 +31,20 @@ services:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
       KC_HTTP_PORT: 8080
-      # Hostname override kaldırıldı: UI localhost üzerinden açılacak
+     
     ports:
       - "8081:8080"
     depends_on:
       postgres:
         condition: service_healthy
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: kaizendesk-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    restart: unless-stopped
 
   opensearch:
     image: opensearchproject/opensearch:2.18.0

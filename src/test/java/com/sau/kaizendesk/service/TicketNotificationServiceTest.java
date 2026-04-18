@@ -24,6 +24,9 @@ class TicketNotificationServiceTest {
     @Mock
     NotificationRepository notificationRepository;
 
+    @Mock
+    EmailService emailService;
+
     @InjectMocks
     TicketNotificationService ticketNotificationService;
 

@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Ticket yaşam döngüsü olaylarından bildirim satırı üretir (SMS yok — in-app liste).
+ * Ticket yaşam döngüsü olaylarından bildirim satırı üretir ve e-posta gönderir.
  */
 @Service
 public class TicketNotificationService {
@@ -27,9 +27,14 @@ public class TicketNotificationService {
     public static final String TYPE_SLA_BREACHED = "SLA_BREACHED";
 
     private final NotificationRepository notificationRepository;
+    private final EmailService emailService;
 
-    public TicketNotificationService(NotificationRepository notificationRepository) {
+    public TicketNotificationService(
+            NotificationRepository notificationRepository,
+            EmailService emailService
+    ) {
         this.notificationRepository = notificationRepository;
+        this.emailService = emailService;
     }
 
     @Transactional
@@ -158,5 +163,14 @@ public class TicketNotificationService {
         n.setCreatedAt(Instant.now());
         n.setRead(false);
         notificationRepository.save(n);
+
+        if (user.getEmail() != null && !user.getEmail().isBlank()) {
+            String ticketNo = ticket != null && ticket.getTicketNo() != null
+                    ? ticket.getTicketNo()
+                    : "";
+            String subject = "[KaizenDesk] " + title
+                    + (ticketNo.isEmpty() ? "" : " — " + ticketNo);
+            emailService.send(user.getEmail(), subject, title, message);
+        }
     }
 }

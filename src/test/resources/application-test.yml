@@ -1,5 +1,11 @@
 # CI / yerel test: Testcontainers PostgreSQL; JwtDecoder @MockBean ile sağlanır
 spring:
+  mail:
+    host: localhost
+    port: 1025
+    properties:
+      mail.smtp.auth: false
+      mail.smtp.starttls.enable: false
   security:
     oauth2:
       resourceserver:
