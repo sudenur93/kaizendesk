@@ -13,6 +13,18 @@ public final class JwtRealmRoles {
      * Keycloak JWT {@code realm_access.roles} içinde CUSTOMER var mı (liste görünümü / sahiplik kontrolü).
      */
     public static boolean isCustomer(Jwt jwt) {
+        return hasRole(jwt, "CUSTOMER");
+    }
+
+    public static boolean isAgent(Jwt jwt) {
+        return hasRole(jwt, "AGENT");
+    }
+
+    public static boolean isManager(Jwt jwt) {
+        return hasRole(jwt, "MANAGER");
+    }
+
+    private static boolean hasRole(Jwt jwt, String role) {
         if (jwt == null) {
             return false;
         }
@@ -26,6 +38,6 @@ public final class JwtRealmRoles {
             return false;
         }
         List<?> roles = (List<?>) rolesObj;
-        return roles.contains("CUSTOMER");
+        return roles.contains(role);
     }
 }

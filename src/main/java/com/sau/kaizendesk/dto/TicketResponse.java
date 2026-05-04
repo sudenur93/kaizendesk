@@ -14,6 +14,7 @@ public class TicketResponse {
     private TicketPriority priority;
     private TicketStatus status;
     private Long assignedAgentId;
+    private String assignedAgentName;
     private String createdByUsername;
     private Long productId;
     private Long categoryId;
@@ -71,6 +72,14 @@ public class TicketResponse {
 
     public void setAssignedAgentId(Long assignedAgentId) {
         this.assignedAgentId = assignedAgentId;
+    }
+
+    public String getAssignedAgentName() {
+        return assignedAgentName;
+    }
+
+    public void setAssignedAgentName(String assignedAgentName) {
+        this.assignedAgentName = assignedAgentName;
     }
 
     public String getCreatedByUsername() {

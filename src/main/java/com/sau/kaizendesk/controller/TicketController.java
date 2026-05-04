@@ -83,8 +83,12 @@ public class TicketController {
     @PatchMapping("/{id}/assign")
     public ResponseEntity<TicketResponse> assignAgent(
             @PathVariable Long id,
-            @Valid @RequestBody AssignAgentRequest request
+            @Valid @RequestBody AssignAgentRequest request,
+            @AuthenticationPrincipal Jwt jwt
     ) {
-        return ResponseEntity.ok(ticketService.assignAgent(id, request.getAgentId()));
+        String username = jwt.getClaimAsString("preferred_username");
+        boolean isAgent = JwtRealmRoles.isAgent(jwt);
+        boolean isManager = JwtRealmRoles.isManager(jwt);
+        return ResponseEntity.ok(ticketService.assignAgent(id, request.getAgentId(), username, isAgent, isManager));
     }
 }

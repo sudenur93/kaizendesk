@@ -7,6 +7,7 @@ import com.sau.kaizendesk.domain.entity.Ticket;
 import com.sau.kaizendesk.domain.entity.User;
 import com.sau.kaizendesk.domain.enums.TicketPriority;
 import com.sau.kaizendesk.domain.enums.TicketStatus;
+import com.sau.kaizendesk.domain.enums.UserRole;
 import com.sau.kaizendesk.dto.CreateTicketRequest;
 import com.sau.kaizendesk.dto.TicketResponse;
 import com.sau.kaizendesk.repository.CategoryRepository;
@@ -214,11 +215,36 @@ public class TicketService {
 
     @Transactional
     public TicketResponse assignAgent(Long id, Long agentId) {
+        return assignAgent(id, agentId, null, false, true);
+    }
+
+    @Transactional
+    public TicketResponse assignAgent(
+            Long id,
+            Long agentId,
+            String actorUsername,
+            boolean actorIsAgent,
+            boolean actorIsManager
+    ) {
         Ticket ticket = ticketRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + id));
 
         User agent = userRepository.findById(agentId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + agentId));
+        if (agent.getRole() != UserRole.AGENT && agent.getRole() != UserRole.MANAGER) {
+            throw new IllegalArgumentException("Assigned user must be an agent or manager");
+        }
+
+        if (actorIsAgent && !actorIsManager) {
+            User actor = userRepository.findByUsername(actorUsername)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found: " + actorUsername));
+            if (!agentId.equals(actor.getId())) {
+                throw new AccessDeniedException("Agent sadece ticket'ı kendi üzerine alabilir");
+            }
+            if (ticket.getAssignedAgent() != null) {
+                throw new AccessDeniedException("Agent sadece atanmamış ticket'ı üzerine alabilir");
+            }
+        }
 
         TicketStatus statusBefore = ticket.getStatus();
         ticket.setAssignedAgent(agent);
@@ -359,6 +385,9 @@ public class TicketService {
         response.setStatus(ticket.getStatus());
         response.setAssignedAgentId(
                 ticket.getAssignedAgent() != null ? ticket.getAssignedAgent().getId() : null
+        );
+        response.setAssignedAgentName(
+                ticket.getAssignedAgent() != null ? ticket.getAssignedAgent().getName() : null
         );
         response.setCreatedByUsername(
                 ticket.getCreatedBy() != null ? ticket.getCreatedBy().getUsername() : null
