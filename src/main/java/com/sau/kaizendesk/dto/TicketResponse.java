@@ -9,6 +9,7 @@ import java.util.List;
 public class TicketResponse {
 
     private Long id;
+    private String ticketNo;
     private String title;
     private String description;
     private TicketPriority priority;
@@ -16,6 +17,9 @@ public class TicketResponse {
     private Long assignedAgentId;
     private String assignedAgentName;
     private String createdByUsername;
+    private String createdByName;
+    private Instant createdAt;
+    private Instant updatedAt;
     private Long productId;
     private Long categoryId;
     private List<Long> issueTypeIds = new ArrayList<>();
@@ -32,6 +36,14 @@ public class TicketResponse {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getTicketNo() {
+        return ticketNo;
+    }
+
+    public void setTicketNo(String ticketNo) {
+        this.ticketNo = ticketNo;
     }
 
     public String getTitle() {
@@ -88,6 +100,30 @@ public class TicketResponse {
 
     public void setCreatedByUsername(String createdByUsername) {
         this.createdByUsername = createdByUsername;
+    }
+
+    public String getCreatedByName() {
+        return createdByName;
+    }
+
+    public void setCreatedByName(String createdByName) {
+        this.createdByName = createdByName;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
     }
 
     public Long getProductId() {

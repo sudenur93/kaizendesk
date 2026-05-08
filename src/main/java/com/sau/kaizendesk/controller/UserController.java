@@ -2,6 +2,7 @@ package com.sau.kaizendesk.controller;
 
 import com.sau.kaizendesk.dto.UserResponse;
 import com.sau.kaizendesk.service.UserService;
+import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,5 +25,11 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<UserResponse> getCurrentUser(@AuthenticationPrincipal Jwt jwt) {
         return ResponseEntity.ok(userService.getCurrentUser(jwt));
+    }
+
+    @PreAuthorize("hasAnyRole('AGENT','MANAGER')")
+    @GetMapping("/agents")
+    public ResponseEntity<List<UserResponse>> getAgents() {
+        return ResponseEntity.ok(userService.getAgentList());
     }
 }

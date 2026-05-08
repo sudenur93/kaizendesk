@@ -13,7 +13,7 @@ const TITLE_MIN = 6;
 const TITLE_MAX = 200;
 const DESC_MIN = 20;
 const DESC_MAX = 1000;
-const FILE_MAX_MB = 20;
+const FILE_MAX_MB = 10;
 const FILE_MAX_BYTES = FILE_MAX_MB * 1024 * 1024;
 
 const PRIORITIES = [

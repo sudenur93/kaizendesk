@@ -5,6 +5,7 @@ import com.sau.kaizendesk.domain.enums.UserRole;
 import com.sau.kaizendesk.dto.UserResponse;
 import com.sau.kaizendesk.repository.UserRepository;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -66,6 +67,21 @@ public class UserService {
         response.setEmail(user.getEmail());
         response.setRole(user.getRole());
         return response;
+    }
+
+    public List<UserResponse> getAgentList() {
+        List<UserRole> agentRoles = List.of(UserRole.AGENT, UserRole.MANAGER);
+        return agentRoles.stream()
+                .flatMap(role -> userRepository.findByRole(role).stream())
+                .map(u -> {
+                    UserResponse r = new UserResponse();
+                    r.setId(u.getId());
+                    r.setName(u.getName());
+                    r.setEmail(u.getEmail());
+                    r.setRole(u.getRole());
+                    return r;
+                })
+                .toList();
     }
 
     private static String resolveFullName(Jwt jwt, String fallbackUsername) {

@@ -43,7 +43,7 @@ public class TicketNotificationService {
         if (creator == null) {
             return;
         }
-        String no = ticket.getTicketNo() != null ? ticket.getTicketNo() : "#" + ticket.getId();
+        String no = "#" + ticket.getId();
         persist(
                 creator,
                 ticket,
@@ -57,7 +57,7 @@ public class TicketNotificationService {
         if (from == to) {
             return;
         }
-        String no = ticket.getTicketNo() != null ? ticket.getTicketNo() : "#" + ticket.getId();
+        String no = "#" + ticket.getId();
         String body =
                 String.format(
                         "%s: %s → %s",
@@ -72,7 +72,7 @@ public class TicketNotificationService {
     @Transactional
     public void onAgentAssigned(Ticket ticket) {
         User agent = ticket.getAssignedAgent();
-        String no = ticket.getTicketNo() != null ? ticket.getTicketNo() : "#" + ticket.getId();
+        String no = "#" + ticket.getId();
         if (agent != null) {
             persist(
                     agent,
@@ -104,7 +104,7 @@ public class TicketNotificationService {
                 ticket.getId(), TYPE_SLA_AT_RISK, now.minus(1, ChronoUnit.DAYS))) {
             return;
         }
-        String no = ticket.getTicketNo() != null ? ticket.getTicketNo() : "#" + ticket.getId();
+        String no = "#" + ticket.getId();
         for (User u : distinctRecipients(ticket)) {
             persist(
                     u,
@@ -120,7 +120,7 @@ public class TicketNotificationService {
         if (!ticket.isSlaBreached() || wasBreachedBefore) {
             return;
         }
-        String no = ticket.getTicketNo() != null ? ticket.getTicketNo() : "#" + ticket.getId();
+        String no = "#" + ticket.getId();
         for (User u : distinctRecipients(ticket)) {
             persist(
                     u,
@@ -165,11 +165,11 @@ public class TicketNotificationService {
         notificationRepository.save(n);
 
         if (user.getEmail() != null && !user.getEmail().isBlank()) {
-            String ticketNo = ticket != null && ticket.getTicketNo() != null
-                    ? ticket.getTicketNo()
+            String ref = ticket != null && ticket.getId() != null
+                    ? "#" + ticket.getId()
                     : "";
             String subject = "[KaizenDesk] " + title
-                    + (ticketNo.isEmpty() ? "" : " — " + ticketNo);
+                    + (ref.isEmpty() ? "" : " — " + ref);
             emailService.send(user.getEmail(), subject, title, message);
         }
     }

@@ -16,7 +16,8 @@ spring:
           jwk-set-uri: http://localhost:8081/realms/kaizendesk/protocol/openid-connect/certs
 
 server:
-  port: 8080
+  # 8080 bazen nginx / başka servis tarafından kullanılır; Vite proxy buna göre ayarlı
+  port: 8082
 
 management:
   otlp:

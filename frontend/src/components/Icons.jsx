@@ -249,6 +249,12 @@ export const Ic = {
       <path d="m3 7 9 6 9-6" />
     </>
   ),
+  User: makeIcon(
+    <>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21a8 8 0 0 1 16 0" />
+    </>
+  ),
   Upload: makeIcon(
     <>
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />

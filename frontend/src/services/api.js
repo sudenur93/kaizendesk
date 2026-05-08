@@ -132,6 +132,16 @@ export async function getCurrentUserProfile() {
   return res.data;
 }
 
+export async function getAgents() {
+  const res = await api.get('/users/agents');
+  return res.data;
+}
+
+export async function getNotifications() {
+  const res = await api.get('/notifications');
+  return res.data;
+}
+
 export async function getTickets(params = {}) {
   const res = await api.get('/tickets', { params });
   return res.data;

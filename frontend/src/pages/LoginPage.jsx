@@ -3,31 +3,17 @@ import { Link, useNavigate } from 'react-router-dom';
 import Ic from '../components/Icons';
 import { login } from '../services/api';
 
-const PILLARS = [
-  {
-    num: '01',
-    title: 'Tek Platform, Tüm Talepler',
-    text:
-      'Üretim hatlarından gelen tüm destek taleplerini tek bir merkezden takip edin, atayın ve sonuçlandırın.',
-  },
-  {
-    num: '02',
-    title: 'SLA Odaklı İş Akışı',
-    text:
-      'Önceliğe göre otomatik hesaplanan SLA hedefleri, ihlal riskinde proaktif uyarılar.',
-  },
-  {
-    num: '03',
-    title: 'Şeffaf Süreç Yönetimi',
-    text:
-      'jBPM tabanlı yaşam döngüsü ile her adım izlenebilir, denetlenebilir ve standart.',
-  },
+const ROLE_OPTS = [
+  { k: 'CUSTOMER', lbl: 'Müşteri', desc: 'C-PORTAL', icon: <Ic.Inbox size={16} /> },
+  { k: 'AGENT', lbl: 'Destek', desc: 'A-DESK', icon: <Ic.Kanban size={16} /> },
+  { k: 'MANAGER', lbl: 'Yönetici', desc: 'M-OPS', icon: <Ic.Dashboard size={16} /> },
 ];
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [demoRole, setDemoRole] = useState('CUSTOMER');
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -38,11 +24,11 @@ export default function LoginPage() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!username || !password || loading) return;
+    if (!email || !password || loading) return;
     setError('');
     setLoading(true);
     try {
-      const { role } = await login(username.trim(), password);
+      const { role } = await login(email.trim(), password);
       if (role === 'MANAGER') navigate('/manager/dashboard');
       else if (role === 'AGENT') navigate('/agent/tickets');
       else navigate('/customer/tickets');
@@ -71,28 +57,65 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className="pillars">
-          {PILLARS.map((p) => (
-            <div key={p.num} className="pillar">
-              <div className="num">{p.num}</div>
-              <div>
-                <h4>{p.title}</h4>
-                <p>{p.text}</p>
+        <div className="login-headline">
+          <div className="eyebrow"><span className="pip" />Endüstriyel Destek</div>
+          <h2>
+            Tek platform.<br />
+            <em>Tüm talepler.</em>
+          </h2>
+          <p>
+            Üretim hatlarından gelen destek taleplerini tek merkezden açın, takip edin ve
+            SLA hedefleri içinde sonuçlandırın.
+          </p>
+
+          <div className="pillars">
+            <div className="pillar">
+              <div className="num">01</div>
+              <div style={{ flex: 1 }}>
+                <h4>Merkezi Talep Yönetimi</h4>
+                <p>Tüm sistemler için tek kuyruk, tek protokol.</p>
               </div>
+              <span className="ic"><Ic.Inbox size={16} /></span>
             </div>
-          ))}
+            <div className="pillar">
+              <div className="num">02</div>
+              <div style={{ flex: 1 }}>
+                <h4>SLA Odaklı Akış</h4>
+                <p>Önceliğe göre hedef süre, riskte proaktif uyarı.</p>
+              </div>
+              <span className="ic"><Ic.Clock size={16} /></span>
+            </div>
+            <div className="pillar">
+              <div className="num">03</div>
+              <div style={{ flex: 1 }}>
+                <h4>Şeffaf Süreç</h4>
+                <p>jBPM tabanlı yaşam döngüsü — izlenebilir ve standart.</p>
+              </div>
+              <span className="ic"><Ic.Check size={16} /></span>
+            </div>
+          </div>
+
+          <div className="login-meta-strip">
+            <div><div className="k">Aktif Hat</div><div className="v">12<b>/</b>14</div></div>
+            <div><div className="k">Bu Hafta</div><div className="v">147 talep</div></div>
+            <div><div className="k">SLA Uyumu</div><div className="v" style={{ color: '#4ec27e' }}>%93.4</div></div>
+            <div><div className="k">Ort. Çözüm</div><div className="v">6.4 sa</div></div>
+          </div>
         </div>
 
         <div className="login-foot">
-          <span>© 2026 KaizenDesk</span>
-          <span>v1.0.0</span>
+          <span className="dotline">SİSTEM ONLINE</span>
+          <span>© 2026 · KAIZENDESK</span>
         </div>
       </div>
 
       <div className="login-right">
-        <form className="login-card" onSubmit={handleSubmit}>
+        <form className="login-card login-form" onSubmit={handleSubmit}>
+          <div className="eyebrow"><Ic.Lock size={11} /> Kimlik Doğrulama</div>
           <h1>Tekrar hoş geldiniz</h1>
-          <p className="sub">Devam etmek için kurumsal hesabınızla oturum açın.</p>
+          <p className="sub">
+            Devam etmek için kurumsal hesabınızla oturum açın. Erişim Keycloak SSO ile yönetilir.
+          </p>
 
           {error && (
             <div
@@ -104,65 +127,95 @@ export default function LoginPage() {
             </div>
           )}
 
-          <div className="col" style={{ gap: 14 }}>
+          <div className="col" style={{ gap: 16 }}>
             <div className="field">
               <label className="field-label">E-posta veya kullanıcı adı</label>
-              <input
-                className="input"
-                type="text"
-                placeholder="ornek@toyota.com"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                disabled={loading}
-                autoFocus
-                required
-              />
-            </div>
-            <div className="field">
-              <label className="field-label">Parola</label>
-              <input
-                className="input"
-                type="password"
-                placeholder="Parolanızı girin"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
-                required
-              />
+              <div className="input-row">
+                <span className="ic-l"><Ic.Mail size={15} /></span>
+                <input
+                  className="input"
+                  type="text"
+                  placeholder="ornek@kaizendesk.local"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
+                  autoFocus
+                  required
+                />
+              </div>
             </div>
 
-            <div className="row" style={{ justifyContent: 'space-between' }}>
-              <label className="row" style={{ gap: 8, fontSize: 13, color: 'var(--text-2)' }}>
-                <input
-                  type="checkbox"
-                  checked={remember}
-                  onChange={(e) => setRemember(e.target.checked)}
-                />
-                Beni hatırla
+            <div className="field">
+              <label className="field-label" style={{ display: 'flex' }}>
+                <span>Parola</span>
+                <span className="spacer" />
+                <Link
+                  to="/forgot-password"
+                  className="muted"
+                  style={{ fontSize: 11.5, whiteSpace: 'nowrap' }}
+                >
+                  Parolamı unuttum
+                </Link>
               </label>
-              <Link to="/forgot-password" className="muted" style={{ fontSize: 13 }}>
-                Parolamı unuttum
-              </Link>
+              <div className="input-row">
+                <span className="ic-l"><Ic.Lock size={15} /></span>
+                <input
+                  className="input"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
+                  required
+                />
+              </div>
             </div>
+
+            <div className="field">
+              <label className="field-label">Demo rol seçin</label>
+              <div className="demo-roles">
+                {ROLE_OPTS.map((r) => (
+                  <button
+                    type="button"
+                    key={r.k}
+                    className={'opt' + (demoRole === r.k ? ' active' : '')}
+                    onClick={() => setDemoRole(r.k)}
+                    disabled={loading}
+                  >
+                    <span className="ic">{r.icon}</span>
+                    <span className="lbl">{r.lbl}</span>
+                    <span className="desc">{r.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <label className="row" style={{ gap: 8, fontSize: 12.5, color: 'var(--text-2)', marginTop: 2 }}>
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+              />
+              Bu cihazda 30 gün hatırla
+            </label>
 
             <button
               type="submit"
               className="btn btn-accent"
-              style={{ justifyContent: 'center', padding: '12px' }}
+              style={{ justifyContent: 'center', padding: 13, fontSize: 14, marginTop: 4 }}
               disabled={loading}
             >
-              <Ic.Lock size={14} />
-              {loading ? 'Oturum açılıyor…' : 'Oturum Aç'}
+              {loading ? 'Oturum açılıyor…' : 'Oturum Aç'} <Ic.ChevronRight size={14} />
             </button>
 
-            <div
-              className="muted"
-              style={{ fontSize: 11.5, textAlign: 'center', marginTop: 6 }}
-            >
-              Keycloak SSO ile korunur · 2FA destekli
+            <div className="secure-strip">
+              <span className="pip" />
+              <span>KEYCLOAK SSO · 2FA AKTİF · AES-256</span>
+              <span className="spacer" />
+              <span>v1.0.0</span>
             </div>
 
-            <div className="muted" style={{ fontSize: 12.5, textAlign: 'center', marginTop: 18 }}>
+            <div className="muted" style={{ fontSize: 12.5, textAlign: 'center', marginTop: 6 }}>
               Hesabınız yok mu?{' '}
               <Link to="/register" style={{ color: 'var(--text)', fontWeight: 500 }}>
                 Kayıt Ol

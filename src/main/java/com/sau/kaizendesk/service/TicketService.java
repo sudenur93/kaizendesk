@@ -16,6 +16,7 @@ import com.sau.kaizendesk.repository.ProductRepository;
 import com.sau.kaizendesk.repository.SlaPolicyRepository;
 import com.sau.kaizendesk.repository.TicketRepository;
 import com.sau.kaizendesk.repository.UserRepository;
+import com.sau.kaizendesk.workflow.TicketWorkflowService;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
@@ -44,6 +45,7 @@ public class TicketService {
     private final IssueTypeRepository issueTypeRepository;
     private final SlaPolicyRepository slaPolicyRepository;
     private final TicketNotificationService ticketNotificationService;
+    private final TicketWorkflowService ticketWorkflowService;
 
     public TicketService(
             TicketRepository ticketRepository,
@@ -52,7 +54,8 @@ public class TicketService {
             CategoryRepository categoryRepository,
             IssueTypeRepository issueTypeRepository,
             SlaPolicyRepository slaPolicyRepository,
-            TicketNotificationService ticketNotificationService
+            TicketNotificationService ticketNotificationService,
+            TicketWorkflowService ticketWorkflowService
     ) {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
@@ -61,6 +64,7 @@ public class TicketService {
         this.issueTypeRepository = issueTypeRepository;
         this.slaPolicyRepository = slaPolicyRepository;
         this.ticketNotificationService = ticketNotificationService;
+        this.ticketWorkflowService = ticketWorkflowService;
     }
 
     @Transactional
@@ -107,6 +111,12 @@ public class TicketService {
         ticket.setSlaTargetAt(calculateSlaTargetAt(request.getPriority(), now));
 
         Ticket savedTicket = ticketRepository.save(ticket);
+        // Flowable BPMN: ticket için process instance başlat
+        String pid = ticketWorkflowService.startProcess(savedTicket);
+        if (pid != null) {
+            savedTicket.setProcessInstanceId(pid);
+            savedTicket = ticketRepository.save(savedTicket);
+        }
         ticketNotificationService.onTicketCreated(savedTicket);
         ticketNotificationService.maybeNotifySlaAtRisk(savedTicket, now);
         return mapToResponse(savedTicket);
@@ -197,6 +207,7 @@ public class TicketService {
         ticket.setUpdatedAt(now);
         syncSlaBreachedFlag(ticket, now);
         Ticket saved = ticketRepository.save(ticket);
+        ticketWorkflowService.onStatusChanged(saved.getProcessInstanceId(), newStatus);
         ticketNotificationService.onStatusChanged(saved, from, newStatus);
         ticketNotificationService.maybeNotifySlaBreached(saved, wasBreached, now);
         ticketNotificationService.maybeNotifySlaAtRisk(saved, now);
@@ -379,6 +390,7 @@ public class TicketService {
         Instant now = Instant.now();
         TicketResponse response = new TicketResponse();
         response.setId(ticket.getId());
+        response.setTicketNo(ticket.getTicketNo());
         response.setTitle(ticket.getTitle());
         response.setDescription(ticket.getDescription());
         response.setPriority(ticket.getPriority());
@@ -392,6 +404,11 @@ public class TicketService {
         response.setCreatedByUsername(
                 ticket.getCreatedBy() != null ? ticket.getCreatedBy().getUsername() : null
         );
+        response.setCreatedByName(
+                ticket.getCreatedBy() != null ? ticket.getCreatedBy().getName() : null
+        );
+        response.setCreatedAt(ticket.getCreatedAt());
+        response.setUpdatedAt(ticket.getUpdatedAt());
         response.setProductId(ticket.getProduct() != null ? ticket.getProduct().getId() : null);
         response.setCategoryId(ticket.getCategory() != null ? ticket.getCategory().getId() : null);
         if (ticket.getIssueTypes() != null && !ticket.getIssueTypes().isEmpty()) {

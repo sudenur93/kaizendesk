@@ -35,3 +35,7 @@ build/
 
 # Yerel ek dosya kökü (application.yml varsayılanı)
 /data/
+
+# Lokal env (SMTP şifresi vs.) - asla commit etme
+.env
+.env.local

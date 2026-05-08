@@ -24,6 +24,9 @@ const NAVS = {
     label: 'Yönetici Portalı',
     items: [
       { id: 'm-dash', to: '/manager/dashboard', label: 'Genel Bakış', icon: <Ic.Dashboard /> },
+      { id: 'm-tickets', to: '/agent/tickets', label: 'Tüm Talepler', icon: <Ic.List /> },
+      { id: 'm-sla', to: '/manager/sla', label: 'SLA İzleme', icon: <Ic.Clock /> },
+      { id: 'm-team', to: '/manager/team', label: 'Ekip', icon: <Ic.Users /> },
     ],
   },
 };

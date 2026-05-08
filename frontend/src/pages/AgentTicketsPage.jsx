@@ -30,46 +30,15 @@ const STATUS_LABEL = {
 
 const KANBAN_COLUMNS = ['NEW', 'IN_PROGRESS', 'WAITING_FOR_CUSTOMER', 'RESOLVED', 'CLOSED'];
 
-/** Backend TicketService.isAllowedTransition ile uyumlu (tek adım kenarları). */
-const STATUS_NEXT = {
-  NEW: ['IN_PROGRESS'],
-  IN_PROGRESS: ['WAITING_FOR_CUSTOMER', 'RESOLVED'],
-  WAITING_FOR_CUSTOMER: ['IN_PROGRESS', 'RESOLVED'],
-  RESOLVED: ['CLOSED'],
-  CLOSED: [],
+const STATUS_TRANSITIONS = {
+  NEW:                  [{ value: 'IN_PROGRESS',           label: 'İşleme Al' }],
+  IN_PROGRESS:          [{ value: 'WAITING_FOR_CUSTOMER',  label: 'Müşteri Bekle' },
+                         { value: 'RESOLVED',              label: 'Çözüldü' }],
+  WAITING_FOR_CUSTOMER: [{ value: 'IN_PROGRESS',           label: 'Geri Al' },
+                         { value: 'RESOLVED',              label: 'Çözüldü' }],
+  RESOLVED:             [{ value: 'CLOSED',                label: 'Kapat' }],
+  CLOSED:               [],
 };
-
-const KANBAN_RESOLVED_NOTE = 'Kanban tahtasından taşındı.';
-
-/**
- * from → to için sırayla PATCH edilecek hedef durumlar (from hariç).
- * Örn. NEW→RESOLVED → ["IN_PROGRESS","RESOLVED"]
- */
-function kanbanStatusChain(fromStatus, toStatus) {
-  if (fromStatus === toStatus) return [];
-  const queue = [fromStatus];
-  const prev = /** @type {Record<string, string|null>} */ ({ [fromStatus]: null });
-
-  while (queue.length > 0) {
-    const cur = /** @type {string} */ (queue.shift());
-    for (const nxt of STATUS_NEXT[cur] || []) {
-      if (Object.prototype.hasOwnProperty.call(prev, nxt)) continue;
-      prev[nxt] = cur;
-      if (nxt === toStatus) {
-        const chain = [];
-        let walk = /** @type {string|null} */ (toStatus);
-        while (walk != null && walk !== fromStatus) {
-          chain.unshift(walk);
-          walk = prev[walk] ?? null;
-        }
-        if (walk !== fromStatus) return null;
-        return chain;
-      }
-      queue.push(nxt);
-    }
-  }
-  return null;
-}
 
 function priorityRank(p) {
   if (p === 'HIGH') return 0;
@@ -98,6 +67,7 @@ function compareTicketsByPriorityThenSla(a, b) {
   return (b.id || 0) - (a.id || 0);
 }
 
+
 export default function AgentTicketsPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -122,8 +92,11 @@ export default function AgentTicketsPage() {
   const [loading, setLoading] = useState(true);
   const [claimingId, setClaimingId] = useState(null);
   const [error, setError] = useState('');
-  const [dragId, setDragId] = useState(null);
-  const [overCol, setOverCol] = useState(null);
+  const [transitioning, setTransitioning] = useState(/** @type {number|null} */ (null));
+  const [resolveModal, setResolveModal] = useState(/** @type {null|{ticketId:number,toStatus:string}} */ (null));
+  const [resolveNote, setResolveNote] = useState('');
+  const [resolveWorking, setResolveWorking] = useState(false);
+
   async function loadPage() {
     setLoading(true);
     setError('');
@@ -238,93 +211,41 @@ export default function AgentTicketsPage() {
     }
   }
 
-  function allowDrop(e, status) {
-    const dt = e.dataTransfer;
-    if (!dt) return;
-    e.preventDefault();
+  async function applyTransition(ticketId, toStatus, note = '') {
+    setTransitioning(ticketId);
     try {
-      dt.dropEffect = 'move';
-    } catch {
-      /* ignore */
-    }
-    setOverCol(status);
-  }
-
-  function handleDragStart(e, ticketId) {
-    setDragId(ticketId);
-    const dt = e.dataTransfer;
-    if (dt) {
-      dt.effectAllowed = 'move';
-      try {
-        dt.setData('text/plain', String(ticketId));
-      } catch {
-        /* Safari */
-      }
-    }
-  }
-
-  function handleDragEnd() {
-    setDragId(null);
-    setOverCol(null);
-  }
-
-  function handleDragLeave(e, status) {
-    const next = /** @type {Node|null} */ (e.relatedTarget);
-    if (next && e.currentTarget.contains(next)) return;
-    setOverCol((prev) => (prev === status ? null : prev));
-  }
-
-  async function handleDrop(e, targetStatus) {
-    e.preventDefault();
-    e.stopPropagation();
-    setOverCol(null);
-
-    const raw = e.dataTransfer?.getData('text/plain')?.trim?.() ?? '';
-    let id = Number.parseInt(raw, 10);
-    if (!Number.isFinite(id) && dragId != null)
-      id = Number.parseInt(String(dragId), 10);
-
-    /* drag görselinden kalan stale state */
-    setDragId(null);
-    if (!Number.isFinite(id)) return;
-
-    const ticket = tickets.find((t) => Number(t.id) === id);
-    if (!ticket || ticket.status === targetStatus) return;
-
-    const chain = kanbanStatusChain(String(ticket.status), String(targetStatus));
-    if (chain === null) {
-      if (pushToast) pushToast('Bu kartı bu kolona taşıyamazsınız.');
-      return;
-    }
-    if (!chain.length) return;
-
-    const prevSnapshot = [...tickets];
-    setTickets((list) =>
-      list.map((t) => (Number(t.id) === id ? { ...t, status: targetStatus } : t)),
-    );
-
-    try {
-      let updated = ticket;
-      for (const step of chain) {
-        updated = await updateTicketStatus(
-          id,
-          step,
-          step === 'RESOLVED' ? KANBAN_RESOLVED_NOTE : '',
-        );
-      }
-      const finalTicket = updated;
-      setTickets((list) =>
-        list.map((t) => (Number(t.id) === id ? finalTicket : t)),
-      );
-      if (pushToast)
-        pushToast(`#${id} → ${STATUS_LABEL[targetStatus] || targetStatus}`);
+      const updated = await updateTicketStatus(ticketId, toStatus, note);
+      setTickets((list) => list.map((t) => (t.id === ticketId ? updated : t)));
+      if (pushToast) pushToast(`#${ticketId} → ${STATUS_LABEL[toStatus] || toStatus}`);
     } catch (err) {
-      setTickets(prevSnapshot);
-      const msg =
-        err.response?.data?.message ||
-        err.response?.data?.detail ||
-        'Geçiş başarısız.';
+      const msg = err.response?.data?.message || err.response?.data?.detail || 'Durum güncellenemedi.';
       if (pushToast) pushToast(`Hata: ${msg}`);
+    } finally {
+      setTransitioning(null);
+    }
+  }
+
+  function handleTransitionClick(e, ticketId, toStatus) {
+    e.stopPropagation();
+    if (toStatus === 'RESOLVED') {
+      setResolveModal({ ticketId, toStatus });
+      setResolveNote('');
+    } else {
+      applyTransition(ticketId, toStatus);
+    }
+  }
+
+  async function confirmResolve() {
+    if (!resolveModal) return;
+    const note = resolveNote.trim();
+    if (!note) { if (pushToast) pushToast('Çözüm notu zorunludur.'); return; }
+    setResolveWorking(true);
+    try {
+      await applyTransition(resolveModal.ticketId, resolveModal.toStatus, note);
+      setResolveModal(null);
+      setResolveNote('');
+    } finally {
+      setResolveWorking(false);
     }
   }
 
@@ -342,6 +263,14 @@ export default function AgentTicketsPage() {
                   : `${visibleTickets.length} sonuç · öncelik ve SLA durumuna göre sıralı`}
             </div>
           </div>
+          <button
+            type="button"
+            className="btn btn-sm btn-ghost"
+            onClick={loadPage}
+            disabled={loading}
+          >
+            <Ic.Refresh size={13} /> Yenile
+          </button>
         </div>
 
         <div className="view-tabs">
@@ -431,69 +360,70 @@ export default function AgentTicketsPage() {
           )}
 
           {view === 'kanban' ? (
-            <div className="kanban" style={{ padding: 12 }}>
-              {KANBAN_COLUMNS.map((status) => {
-                const colTickets = visibleTickets.filter((t) => t.status === status);
-                const isOver = overCol === status;
-                return (
-                  <div
-                    key={status}
-                    className={'kcol' + (isOver ? ' over' : '')}
-                    onDragEnterCapture={(e) => allowDrop(e, status)}
-                    onDragOverCapture={(e) => allowDrop(e, status)}
-                    onDragLeave={(e) => handleDragLeave(e, status)}
-                    onDrop={(e) => handleDrop(e, status)}
-                  >
-                    <div className="kcol-head">
-                      <span className="lbl">{STATUS_LABEL[status] || status}</span>
-                      <span className="ct">{colTickets.length}</span>
-                    </div>
-                    <div className="kcol-body">
-                      {colTickets.length === 0 ? (
-                        <div
-                          className="muted"
-                          style={{
-                            fontSize: 12, textAlign: 'center', padding: 16,
-                            border: isOver ? '2px dashed var(--accent)' : '2px dashed transparent',
-                            borderRadius: 6, transition: 'border-color .15s',
-                          }}
-                        >
-                          {isOver ? 'Buraya bırak' : 'Ticket yok'}
-                        </div>
-                      ) : (
-                        colTickets.map((ticket) => {
-                          const isDragging =
-                            dragId !== null &&
-                            dragId !== undefined &&
-                            String(dragId) === String(ticket.id);
-                          return (
-                            <div
-                              key={ticket.id}
-                              className={'kcard' + (isDragging ? ' drag' : '')}
-                              draggable
-                              onDragStart={(e) => handleDragStart(e, ticket.id)}
-                              onDragEnd={handleDragEnd}
-                              onClick={() => navigate(`/agent/tickets/${ticket.id}`)}
-                              style={{ cursor: 'grab' }}
-                            >
-                              <div className="top">
-                                <span className="tag">#{ticket.id}</span>
-                                <PriorityBadge priority={ticket.priority} />
+            <div style={{ overflowX: 'auto', padding: '12px 0' }}>
+              <div className="kanban" style={{ minWidth: 1300 }}>
+                {KANBAN_COLUMNS.map((status) => {
+                  const colTickets = visibleTickets.filter((t) => t.status === status);
+                  return (
+                    <div key={status} className="kcol">
+                      <div className="kcol-head">
+                        <span className="lbl">{STATUS_LABEL[status] || status}</span>
+                        <span className="ct">{colTickets.length}</span>
+                      </div>
+                      <div className="kcol-body">
+                        {colTickets.length === 0 ? (
+                          <div className="muted" style={{ fontSize: 12, textAlign: 'center', padding: 16 }}>
+                            Ticket yok
+                          </div>
+                        ) : (
+                          colTickets.map((ticket) => {
+                            const transitions = STATUS_TRANSITIONS[ticket.status] || [];
+                            const isBusy = transitioning === ticket.id;
+                            return (
+                              <div
+                                key={ticket.id}
+                                className="kcard"
+                                onClick={() => navigate(`/agent/tickets/${ticket.id}`)}
+                                style={{ cursor: 'pointer' }}
+                              >
+                                <div className="top">
+                                  <span className="tag">#{ticket.id}</span>
+                                  <PriorityBadge priority={ticket.priority} />
+                                </div>
+                                <div className="ttl">{ticket.title}</div>
+                                <SlaBar ticket={ticket} />
+                                <div className="foot">
+                                  <span>{productMap.get(ticket.productId) || 'Ürün'}</span>
+                                  <span>{ticket.createdByUsername || '-'}</span>
+                                </div>
+                                {transitions.length > 0 && (
+                                  <div
+                                    style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {transitions.map((tr) => (
+                                      <button
+                                        key={tr.value}
+                                        type="button"
+                                        className="btn btn-sm"
+                                        style={{ fontSize: 11, padding: '2px 8px' }}
+                                        disabled={isBusy}
+                                        onClick={(e) => handleTransitionClick(e, ticket.id, tr.value)}
+                                      >
+                                        {isBusy ? '…' : `→ ${tr.label}`}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
-                              <div className="ttl">{ticket.title}</div>
-                              <SlaBar ticket={ticket} />
-                              <div className="foot">
-                                <span>{productMap.get(ticket.productId) || 'Ürün'}</span>
-                                <span>{ticket.createdByUsername || '-'}</span>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
+                            );
+                          })
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           ) : (
             <table className="tbl">
@@ -504,6 +434,7 @@ export default function AgentTicketsPage() {
                   <th style={{ width: 130 }}>Durum</th>
                   <th style={{ width: 90 }}>Öncelik</th>
                   <th style={{ width: 160 }}>SLA</th>
+                  <th style={{ width: 120 }}>Açıldı</th>
                   <th style={{ width: 150 }}>Müşteri</th>
                   {(ownerScope === 'all' || ownerScope === 'others') && <th style={{ width: 140 }}>Atanan</th>}
                   {ownerScope === 'unassigned' && <th style={{ width: 130 }}>Aksiyon</th>}
@@ -542,6 +473,7 @@ export default function AgentTicketsPage() {
                       <td>
                         <SlaBar ticket={ticket} />
                       </td>
+                      <td className="meta">{fmtDate(ticket.createdAt, 'datetime')}</td>
                       <td className="meta">{ticket.createdByUsername || '-'}</td>
                       {(ownerScope === 'all' || ownerScope === 'others') && (
                         <td className="meta">{ticket.assignedAgentName || <span className="muted">—</span>}</td>
@@ -571,6 +503,40 @@ export default function AgentTicketsPage() {
           Son güncelleme: {fmtDate(Date.now(), 'datetime')}
         </div>
       </div>
+
+      {resolveModal && (
+        <div className="scrim" role="presentation" onClick={() => { if (!resolveWorking) { setResolveModal(null); setResolveNote(''); } }}>
+          <div role="dialog" aria-modal="true" className="dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="dialog-head">
+              <h3>Çözüm notu gerekli</h3>
+            </div>
+            <div className="dialog-body">
+              <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+                #{resolveModal.ticketId} talep Çözüldü durumuna taşınıyor. Açıklama zorunludur.
+              </p>
+              <textarea
+                className="textarea"
+                rows={4}
+                placeholder="Çözüm notunu yazın…"
+                value={resolveNote}
+                onChange={(e) => setResolveNote(e.target.value)}
+                disabled={resolveWorking}
+                maxLength={2000}
+                autoFocus
+              />
+            </div>
+            <div className="dialog-foot">
+              <button type="button" className="btn btn-ghost" disabled={resolveWorking}
+                onClick={() => { setResolveModal(null); setResolveNote(''); }}>
+                Vazgeç
+              </button>
+              <button type="button" className="btn btn-accent" disabled={resolveWorking} onClick={confirmResolve}>
+                {resolveWorking ? 'Kaydediliyor…' : 'Onayla'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

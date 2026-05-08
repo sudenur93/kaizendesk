@@ -4,6 +4,7 @@ import com.sau.kaizendesk.domain.entity.Ticket;
 import com.sau.kaizendesk.domain.enums.TicketStatus;
 import com.sau.kaizendesk.dto.DashboardSummaryResponse;
 import com.sau.kaizendesk.dto.DashboardSummaryResponse.AgentPerformance;
+import com.sau.kaizendesk.dto.DashboardSummaryResponse.DailyCount;
 import com.sau.kaizendesk.repository.TicketRepository;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -13,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -105,8 +107,29 @@ public class DashboardService {
                         () -> resp.setAvgResolutionMinutes(null));
 
         resp.setAgentPerformances(buildAgentPerformances(all));
+        resp.setDailyCreatedCounts(dailyCounts(all, 14, Ticket::getCreatedAt));
+        resp.setDailyClosedCounts(dailyCounts(all, 14, Ticket::getResolvedAt));
 
         return resp;
+    }
+
+    private List<DailyCount> dailyCounts(List<Ticket> all, int days, Function<Ticket, Instant> dateOf) {
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        List<DailyCount> result = new ArrayList<>(days);
+        for (int i = days - 1; i >= 0; i--) {
+            LocalDate day = today.minusDays(i);
+            Instant start = day.atStartOfDay().toInstant(ZoneOffset.UTC);
+            Instant end = day.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+            long count = all.stream()
+                    .filter(t -> dateOf.apply(t) != null)
+                    .filter(t -> !dateOf.apply(t).isBefore(start) && dateOf.apply(t).isBefore(end))
+                    .count();
+            DailyCount dc = new DailyCount();
+            dc.setDate(day.toString());
+            dc.setCount(count);
+            result.add(dc);
+        }
+        return result;
     }
 
     private long countByStatus(List<Ticket> tickets, TicketStatus status) {

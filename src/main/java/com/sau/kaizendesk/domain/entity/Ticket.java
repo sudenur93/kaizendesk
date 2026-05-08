@@ -91,6 +91,9 @@ public class Ticket {
     @Column(name = "sla_breached", nullable = false)
     private boolean slaBreached = false;
 
+    @Column(name = "process_instance_id", length = 64)
+    private String processInstanceId;
+
     @Column(name = "resolution_note", columnDefinition = "TEXT")
     private String resolutionNote;
 
@@ -238,6 +241,14 @@ public class Ticket {
 
     public boolean isSlaBreached() {
         return slaBreached;
+    }
+
+    public String getProcessInstanceId() {
+        return processInstanceId;
+    }
+
+    public void setProcessInstanceId(String processInstanceId) {
+        this.processInstanceId = processInstanceId;
     }
 
     public void setSlaBreached(boolean slaBreached) {

@@ -3,7 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import { useToasts } from './Common';
-import { getCurrentUserProfile, getRole } from '../services/api';
+import { getCurrentUserProfile, getNotifications, getRole } from '../services/api';
 
 const ShellContext = createContext({});
 
@@ -16,6 +16,8 @@ const CRUMB_MAP = {
   '/customer/tickets/new': ['Müşteri Portalı', 'Yeni Talep'],
   '/agent/tickets': ['Destek Portalı', 'Talepler'],
   '/manager/dashboard': ['Yönetici Portalı', 'Genel Bakış'],
+  '/manager/sla': ['Yönetici Portalı', 'SLA İzleme'],
+  '/manager/team': ['Yönetici Portalı', 'Ekip'],
 };
 
 function buildCrumbs(pathname) {
@@ -41,6 +43,7 @@ export default function PortalShell() {
   const location = useLocation();
   const role = getRole();
   const [user, setUser] = useState(null);
+  const [notifications, setNotifications] = useState([]);
   const [search, setSearch] = useState('');
   const [theme, setTheme] = useState(readStoredTheme);
   const [pushToast, toastsNode] = useToasts();
@@ -63,6 +66,23 @@ export default function PortalShell() {
       .catch(() => {});
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    function load() {
+      getNotifications()
+        .then((data) => {
+          if (!cancelled) setNotifications(data);
+        })
+        .catch(() => {});
+    }
+    load();
+    const id = setInterval(load, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
     };
   }, []);
 
@@ -92,6 +112,7 @@ export default function PortalShell() {
             onSearchChange={setSearch}
             theme={theme}
             onThemeToggle={() => setTheme((t) => (t === 'light' ? 'dark' : 'light'))}
+            notifications={notifications}
           />
           <Outlet context={ctx} />
         </div>

@@ -8,6 +8,8 @@ import CustomerTicketDetailPage from './pages/CustomerTicketDetailPage';
 import AgentTicketsPage from './pages/AgentTicketsPage';
 import AgentTicketDetailPage from './pages/AgentTicketDetailPage';
 import ManagerDashboardPage from './pages/ManagerDashboardPage';
+import ManagerSLAPage from './pages/ManagerSLAPage';
+import ManagerTeamPage from './pages/ManagerTeamPage';
 import PortalShell from './components/PortalShell';
 import { getRole, isLoggedIn } from './services/api';
 
@@ -68,7 +70,7 @@ export default function App() {
           <Route
             path="/agent/tickets"
             element={
-              <ProtectedRoute allowedRoles={['AGENT']}>
+              <ProtectedRoute allowedRoles={['AGENT', 'MANAGER']}>
                 <AgentTicketsPage />
               </ProtectedRoute>
             }
@@ -76,7 +78,7 @@ export default function App() {
           <Route
             path="/agent/tickets/:id"
             element={
-              <ProtectedRoute allowedRoles={['AGENT']}>
+              <ProtectedRoute allowedRoles={['AGENT', 'MANAGER']}>
                 <AgentTicketDetailPage />
               </ProtectedRoute>
             }
@@ -86,6 +88,22 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={['MANAGER']}>
                 <ManagerDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/manager/sla"
+            element={
+              <ProtectedRoute allowedRoles={['MANAGER']}>
+                <ManagerSLAPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/manager/team"
+            element={
+              <ProtectedRoute allowedRoles={['MANAGER']}>
+                <ManagerTeamPage />
               </ProtectedRoute>
             }
           />

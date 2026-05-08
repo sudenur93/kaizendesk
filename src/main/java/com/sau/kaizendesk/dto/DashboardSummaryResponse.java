@@ -144,6 +144,23 @@ public class DashboardSummaryResponse {
         this.agentPerformances = agentPerformances;
     }
 
+    private List<DailyCount> dailyCreatedCounts;
+    private List<DailyCount> dailyClosedCounts;
+
+    public List<DailyCount> getDailyCreatedCounts() { return dailyCreatedCounts; }
+    public void setDailyCreatedCounts(List<DailyCount> dailyCreatedCounts) { this.dailyCreatedCounts = dailyCreatedCounts; }
+    public List<DailyCount> getDailyClosedCounts() { return dailyClosedCounts; }
+    public void setDailyClosedCounts(List<DailyCount> dailyClosedCounts) { this.dailyClosedCounts = dailyClosedCounts; }
+
+    public static class DailyCount {
+        private String date;
+        private long count;
+        public String getDate() { return date; }
+        public void setDate(String date) { this.date = date; }
+        public long getCount() { return count; }
+        public void setCount(long count) { this.count = count; }
+    }
+
     public static class AgentPerformance {
         private Long agentId;
         private String agentName;
