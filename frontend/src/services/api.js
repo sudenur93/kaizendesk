@@ -1,9 +1,13 @@
 import axios from 'axios';
 
-const API_BASE = '/api/v1';
-const KEYCLOAK_BASE = '/auth/realms/kaizendesk/protocol/openid-connect';
-const KEYCLOAK_ADMIN_TOKEN = '/auth/realms/master/protocol/openid-connect/token';
-const KEYCLOAK_ADMIN_USERS = '/auth/admin/realms/kaizendesk/users';
+// Production'da env var'dan gelir, dev'de Vite proxy üzerinden çalışır
+const _API_URL   = import.meta.env.VITE_API_URL   || '';
+const _KC_URL    = import.meta.env.VITE_KEYCLOAK_URL || '';
+
+const API_BASE           = _API_URL  ? `${_API_URL}/api/v1`   : '/api/v1';
+const KEYCLOAK_BASE      = _KC_URL   ? `${_KC_URL}/realms/kaizendesk/protocol/openid-connect` : '/auth/realms/kaizendesk/protocol/openid-connect';
+const KEYCLOAK_ADMIN_TOKEN = _KC_URL ? `${_KC_URL}/realms/master/protocol/openid-connect/token` : '/auth/realms/master/protocol/openid-connect/token';
+const KEYCLOAK_ADMIN_USERS = _KC_URL ? `${_KC_URL}/admin/realms/kaizendesk/users` : '/auth/admin/realms/kaizendesk/users';
 const CLIENT_ID = 'kaizendesk-app';
 
 const api = axios.create({ baseURL: API_BASE });

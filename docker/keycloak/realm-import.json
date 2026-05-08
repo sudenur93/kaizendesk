@@ -1,0 +1,105 @@
+{
+  "realm": "kaizendesk",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "roles": {
+    "realm": [
+      { "name": "CUSTOMER", "composite": false },
+      { "name": "AGENT",    "composite": false },
+      { "name": "MANAGER",  "composite": false }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "kaizendesk-app",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "redirectUris": ["*"],
+      "webOrigins": ["*"],
+      "protocolMappers": [
+        {
+          "name": "roles-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "audience-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "account",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "customer1",
+      "email": "customer1@kaizendesk.demo",
+      "firstName": "Ali",
+      "lastName": "Yılmaz",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["CUSTOMER"],
+      "credentials": [{ "type": "password", "value": "customer123", "temporary": false }]
+    },
+    {
+      "username": "customer2",
+      "email": "customer2@kaizendesk.demo",
+      "firstName": "Ayşe",
+      "lastName": "Kaya",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["CUSTOMER"],
+      "credentials": [{ "type": "password", "value": "customer123", "temporary": false }]
+    },
+    {
+      "username": "agent1",
+      "email": "agent1@kaizendesk.demo",
+      "firstName": "Mehmet",
+      "lastName": "Demir",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["AGENT"],
+      "credentials": [{ "type": "password", "value": "agent123", "temporary": false }]
+    },
+    {
+      "username": "sude3",
+      "email": "sude3@test.com",
+      "firstName": "Sude",
+      "lastName": "Üç",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["AGENT"],
+      "credentials": [{ "type": "password", "value": "agent123", "temporary": false }]
+    },
+    {
+      "username": "manager",
+      "email": "manager@kaizendesk.demo",
+      "firstName": "Fatma",
+      "lastName": "Şahin",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["MANAGER"],
+      "credentials": [{ "type": "password", "value": "manager123", "temporary": false }]
+    }
+  ]
+}
