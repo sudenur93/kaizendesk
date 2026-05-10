@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import Ic from '../components/Icons';
 import { login } from '../services/api';
 
@@ -17,9 +18,13 @@ export default function LoginPage() {
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [stats, setStats] = useState(null);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'light');
+    axios.get('/api/v1/public/stats')
+      .then(r => setStats(r.data))
+      .catch(() => {});
   }, []);
 
   async function handleSubmit(e) {
@@ -96,10 +101,24 @@ export default function LoginPage() {
           </div>
 
           <div className="login-meta-strip">
-            <div><div className="k">Aktif Hat</div><div className="v">12<b>/</b>14</div></div>
-            <div><div className="k">Bu Hafta</div><div className="v">147 talep</div></div>
-            <div><div className="k">SLA Uyumu</div><div className="v" style={{ color: '#4ec27e' }}>%93.4</div></div>
-            <div><div className="k">Ort. Çözüm</div><div className="v">6.4 sa</div></div>
+            <div>
+              <div className="k">Aktif Talep</div>
+              <div className="v">{stats ? stats.activeTickets : '—'}<b>/</b>{stats ? stats.totalTickets : '—'}</div>
+            </div>
+            <div>
+              <div className="k">Toplam</div>
+              <div className="v">{stats ? stats.totalTickets + ' talep' : '—'}</div>
+            </div>
+            <div>
+              <div className="k">SLA Uyumu</div>
+              <div className="v" style={{ color: stats ? (stats.slaComplianceRate >= 80 ? '#4ec27e' : '#f59e0b') : undefined }}>
+                {stats ? '%' + stats.slaComplianceRate.toFixed(1) : '—'}
+              </div>
+            </div>
+            <div>
+              <div className="k">Ort. Çözüm</div>
+              <div className="v">{stats ? stats.avgResolutionHours + ' sa' : '—'}</div>
+            </div>
           </div>
         </div>
 
