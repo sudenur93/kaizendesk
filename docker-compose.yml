@@ -91,11 +91,11 @@ services:
     restart: unless-stopped
 
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.117.0
+    build:
+      context: ./docker/otel
+      dockerfile: Dockerfile
     container_name: kaizendesk-otel-collector
     command: ["--config=/etc/otelcol-contrib/config.yaml"]
-    volumes:
-      - ./docker/otel/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
     ports:
       - "4317:4317"
       - "4318:4318"
