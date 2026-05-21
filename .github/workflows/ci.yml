@@ -20,3 +20,6 @@ jobs:
 
       - name: Maven verify
         run: mvn -B verify
+        env:
+          DOCKER_HOST: unix:///var/run/docker.sock
+          TESTCONTAINERS_RYUK_DISABLED: "true"

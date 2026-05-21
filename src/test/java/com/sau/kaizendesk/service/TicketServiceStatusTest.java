@@ -13,6 +13,7 @@ import com.sau.kaizendesk.repository.ProductRepository;
 import com.sau.kaizendesk.repository.SlaPolicyRepository;
 import com.sau.kaizendesk.repository.TicketRepository;
 import com.sau.kaizendesk.repository.UserRepository;
+import com.sau.kaizendesk.workflow.TicketWorkflowService;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,6 +38,8 @@ class TicketServiceStatusTest {
 	SlaPolicyRepository slaPolicyRepository;
 	@Mock
 	TicketNotificationService ticketNotificationService;
+	@Mock
+	TicketWorkflowService ticketWorkflowService;
 
 	@InjectMocks
 	TicketService ticketService;
