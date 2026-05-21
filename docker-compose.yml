@@ -141,6 +141,7 @@ services:
       SMTP_FROM: ${SMTP_FROM:-no-reply@kaizendesk.local}
       SMTP_AUTH: ${SMTP_AUTH:-true}
       SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      MANAGEMENT_HEALTH_MAIL_ENABLED: ${MANAGEMENT_HEALTH_MAIL_ENABLED:-true}
     volumes:
       - app_logs:/var/log/kaizendesk
       - attachment_data:/var/lib/kaizendesk/attachments

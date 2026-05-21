@@ -93,6 +93,16 @@
       "credentials": [{ "type": "password", "value": "agent123", "temporary": false }]
     },
     {
+      "username": "agent2",
+      "email": "agent2@kaizendesk.demo",
+      "firstName": "Can",
+      "lastName": "Yıldız",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["AGENT"],
+      "credentials": [{ "type": "password", "value": "agent123", "temporary": false }]
+    },
+    {
       "username": "manager",
       "email": "manager@kaizendesk.demo",
       "firstName": "Fatma",
