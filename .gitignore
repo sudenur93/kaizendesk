@@ -39,3 +39,4 @@ build/
 # Lokal env (SMTP şifresi vs.) - asla commit etme
 .env
 .env.local
+.claude/
