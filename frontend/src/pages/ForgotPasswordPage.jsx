@@ -3,8 +3,19 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import Ic from '../components/Icons';
 
-const KEYCLOAK_ADMIN_TOKEN = '/auth/realms/master/protocol/openid-connect/token';
-const KEYCLOAK_ADMIN_USERS = '/auth/admin/realms/kaizendesk/users';
+const KC_ADMIN_TOKEN = '/auth/realms/master/protocol/openid-connect/token';
+const KC_ADMIN_USERS = '/auth/admin/realms/kaizendesk/users';
+const KC_ADMIN_REALM = '/auth/admin/realms/kaizendesk';
+
+async function getAdminToken() {
+  const params = new URLSearchParams();
+  params.append('client_id', 'admin-cli');
+  params.append('grant_type', 'password');
+  params.append('username', 'admin');
+  params.append('password', 'admin');
+  const res = await axios.post(KC_ADMIN_TOKEN, params);
+  return res.data.access_token;
+}
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -19,38 +30,38 @@ export default function ForgotPasswordPage() {
     setLoading(true);
 
     try {
-      const adminParams = new URLSearchParams();
-      adminParams.append('client_id', 'kaizendesk-app');
-      adminParams.append('grant_type', 'password');
-      adminParams.append('username', 'admin');
-      adminParams.append('password', 'admin');
+      const adminToken = await getAdminToken();
+      const authHeaders = { Authorization: `Bearer ${adminToken}` };
 
-      const adminRes = await axios.post(KEYCLOAK_ADMIN_TOKEN, adminParams);
-      const adminToken = adminRes.data.access_token;
-
+      // Kullanıcıyı e-posta ile bul
       const usersRes = await axios.get(
-        `${KEYCLOAK_ADMIN_USERS}?email=${encodeURIComponent(email)}`,
-        { headers: { Authorization: `Bearer ${adminToken}` } }
+        `${KC_ADMIN_USERS}?email=${encodeURIComponent(email)}&exact=true`,
+        { headers: authHeaders }
       );
 
-      if (usersRes.data.length === 0) {
+      if (!usersRes.data?.length) {
         setError('Bu e-posta adresine ait hesap bulunamadı.');
         return;
       }
 
       const userId = usersRes.data[0].id;
 
+      // Şifre sıfırlama e-postası gönder
       await axios.put(
-        `${KEYCLOAK_ADMIN_USERS}/${userId}`,
-        { requiredActions: ['UPDATE_PASSWORD'] },
-        { headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' } }
+        `${KC_ADMIN_REALM}/users/${userId}/execute-actions-email`,
+        ['UPDATE_PASSWORD'],
+        { headers: { ...authHeaders, 'Content-Type': 'application/json' } }
       );
 
       setSuccess(
-        'Şifre sıfırlama talebi oluşturuldu. Bir sonraki girişinizde yeni şifre belirlemeniz istenecektir.'
+        'Şifre sıfırlama bağlantısı e-posta adresinize gönderildi. Gelen kutunuzu kontrol edin.'
       );
-    } catch {
-      setError('İşlem gerçekleştirilemedi. Lütfen tekrar deneyin.');
+    } catch (err) {
+      if (err.response?.status === 400) {
+        setError('E-posta gönderilemedi. Sunucu e-posta ayarları kontrol edilmeli.');
+      } else {
+        setError('İşlem gerçekleştirilemedi. Lütfen tekrar deneyin.');
+      }
     } finally {
       setLoading(false);
     }
@@ -69,34 +80,48 @@ export default function ForgotPasswordPage() {
       </div>
       <div className="login-right">
         <form className="login-card" onSubmit={handleSubmit}>
-          <h1>Şifre Sıfırlama</h1>
-          <p className="sub">Kayıtlı e-posta ile reset işlemi başlatılır.</p>
+          <div className="eyebrow"><Ic.Lock size={11} /> Şifre Sıfırlama</div>
+          <h1>Parolanızı sıfırlayın</h1>
+          <p className="sub">
+            Kayıtlı e-posta adresinizi girin, size sıfırlama bağlantısı gönderelim.
+          </p>
 
           {error && (
             <div className="badge p-high" style={{ display: 'flex', padding: '8px 12px', marginBottom: 16, gap: 8 }}>
-              <Ic.AlertTriangle size={13} />
-              {error}
+              <Ic.AlertTriangle size={13} /> {error}
             </div>
           )}
           {success && (
             <div className="badge s-resolved" style={{ display: 'flex', padding: '8px 12px', marginBottom: 16, gap: 8 }}>
-              <Ic.Check size={13} />
-              {success}
+              <Ic.Check size={13} /> {success}
             </div>
           )}
 
-          <div className="field">
-            <label className="field-label">E-posta Adresiniz</label>
-            <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
-          </div>
+          <div className="col" style={{ gap: 16 }}>
+            <div className="field">
+              <label className="field-label">E-posta Adresiniz</label>
+              <div className="input-row">
+                <span className="ic-l"><Ic.Mail size={15} /></span>
+                <input
+                  className="input" type="email" placeholder="ornek@kaizendesk.local"
+                  value={email} onChange={(e) => setEmail(e.target.value)}
+                  required autoFocus disabled={loading || !!success}
+                />
+              </div>
+            </div>
 
-          <button type="submit" className="btn btn-accent" style={{ justifyContent: 'center', marginTop: 14 }} disabled={loading}>
-            <Ic.Lock size={14} />
-            {loading ? 'Gönderiliyor…' : 'Sıfırlama Talebi Gönder'}
-          </button>
+            {!success && (
+              <button type="submit" className="btn btn-accent"
+                style={{ justifyContent: 'center', padding: 13, fontSize: 14 }}
+                disabled={loading}>
+                <Ic.Lock size={14} />
+                {loading ? 'Gönderiliyor…' : 'Sıfırlama Bağlantısı Gönder'}
+              </button>
+            )}
 
-          <div className="muted" style={{ textAlign: 'center', marginTop: 16 }}>
-            <Link to="/login">← Giriş sayfasına dön</Link>
+            <div className="muted" style={{ textAlign: 'center', fontSize: 12.5 }}>
+              <Link to="/login">← Giriş sayfasına dön</Link>
+            </div>
           </div>
         </form>
       </div>

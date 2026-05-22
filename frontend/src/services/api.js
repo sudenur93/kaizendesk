@@ -12,8 +12,13 @@ const CLIENT_ID = 'kaizendesk-app';
 
 const api = axios.create({ baseURL: API_BASE });
 
+// "Beni hatırla" seçiliyse localStorage, değilse sessionStorage kullan
+function getStorage() {
+  return localStorage.getItem('rememberMe') === '1' ? localStorage : sessionStorage;
+}
+
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -26,6 +31,7 @@ api.interceptors.response.use(
     const status = err.response?.status;
     if (status === 401 || status === 403) {
       localStorage.clear();
+      sessionStorage.clear();
       if (!window.location.pathname.startsWith('/login')) {
         window.location.href = '/login?expired=1';
       }
@@ -34,12 +40,13 @@ api.interceptors.response.use(
   }
 );
 
-export async function login(username, password) {
+export async function login(username, password, totp = '', remember = true) {
   const params = new URLSearchParams();
   params.append('client_id', CLIENT_ID);
   params.append('grant_type', 'password');
   params.append('username', username);
   params.append('password', password);
+  if (totp) params.append('totp', totp);
 
   const res = await axios.post(`${KEYCLOAK_BASE}/token`, params);
   const token = res.data.access_token;
@@ -52,18 +59,23 @@ export async function login(username, password) {
   if (realmRoles.includes('MANAGER')) role = 'MANAGER';
   else if (realmRoles.includes('AGENT')) role = 'AGENT';
 
-  localStorage.setItem('token', token);
-  localStorage.setItem('refreshToken', refreshToken);
-  localStorage.setItem('role', role);
-  localStorage.setItem('username', payload.preferred_username);
-  localStorage.setItem('name', payload.name || payload.preferred_username);
+  // Beni hatırla: localStorage (kalıcı) vs sessionStorage (sekme kapanınca siler)
+  localStorage.setItem('rememberMe', remember ? '1' : '0');
+  const storage = remember ? localStorage : sessionStorage;
+  if (!remember) localStorage.clear(); // önceki kalıcı oturumu temizle
+
+  storage.setItem('token', token);
+  storage.setItem('refreshToken', refreshToken);
+  storage.setItem('role', role);
+  storage.setItem('username', payload.preferred_username);
+  storage.setItem('name', payload.name || payload.preferred_username);
 
   return { token, role, username: payload.preferred_username, name: payload.name };
 }
 
-const KEYCLOAK_ADMIN_REALM = '/auth/admin/realms/kaizendesk';
+const KEYCLOAK_ADMIN_REALM = _KC_URL ? `${_KC_URL}/admin/realms/kaizendesk` : '/auth/admin/realms/kaizendesk';
 
-export async function register(username, password, email, firstName, lastName) {
+export async function register(username, password, email, firstName, lastName, role = 'CUSTOMER') {
   const adminParams = new URLSearchParams();
   adminParams.append('client_id', 'admin-cli');
   adminParams.append('grant_type', 'password');
@@ -84,7 +96,7 @@ export async function register(username, password, email, firstName, lastName) {
       email,
       firstName,
       lastName,
-      enabled: true,
+      enabled: false, // admin onayı bekliyor
       emailVerified: true,
       credentials: [{ type: 'password', value: password, temporary: false }],
     },
@@ -100,7 +112,7 @@ export async function register(username, password, email, firstName, lastName) {
     throw new Error('Kullanıcı oluşturuldu ancak rol atanamadı.');
   }
 
-  const roleRes = await axios.get(`${KEYCLOAK_ADMIN_REALM}/roles/CUSTOMER`, {
+  const roleRes = await axios.get(`${KEYCLOAK_ADMIN_REALM}/roles/${role}`, {
     headers: authHeaders,
   });
   await axios.post(
@@ -112,23 +124,60 @@ export async function register(username, password, email, firstName, lastName) {
 
 export function logout() {
   localStorage.clear();
+  sessionStorage.clear();
   window.location.href = '/login';
 }
 
 export function getRole() {
-  return localStorage.getItem('role');
+  return localStorage.getItem('role') || sessionStorage.getItem('role');
 }
 
 export function getUsername() {
-  return localStorage.getItem('username');
+  return localStorage.getItem('username') || sessionStorage.getItem('username');
 }
 
 export function getName() {
-  return localStorage.getItem('name');
+  return localStorage.getItem('name') || sessionStorage.getItem('name');
 }
 
 export function isLoggedIn() {
-  return !!localStorage.getItem('token');
+  return !!(localStorage.getItem('token') || sessionStorage.getItem('token'));
+}
+
+async function getAdminToken() {
+  const params = new URLSearchParams();
+  params.append('client_id', 'admin-cli');
+  params.append('grant_type', 'password');
+  params.append('username', 'admin');
+  params.append('password', 'admin');
+  const res = await axios.post(KEYCLOAK_ADMIN_TOKEN, params);
+  return res.data.access_token;
+}
+
+export async function getPendingUsers() {
+  const token = await getAdminToken();
+  const res = await axios.get(`${KEYCLOAK_ADMIN_USERS}?enabled=false&max=50`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data || [];
+}
+
+export async function approveUser(userId) {
+  const token = await getAdminToken();
+  await axios.put(`${KEYCLOAK_ADMIN_USERS}/${userId}`, { enabled: true }, {
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  });
+  // Hoş geldin maili gönder
+  await axios.put(`${KEYCLOAK_ADMIN_USERS}/${userId}/execute-actions-email`, [], {
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  }).catch(() => {});
+}
+
+export async function rejectUser(userId) {
+  const token = await getAdminToken();
+  await axios.delete(`${KEYCLOAK_ADMIN_USERS}/${userId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
 }
 
 export async function getCurrentUserProfile() {

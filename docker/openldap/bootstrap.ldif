@@ -1,0 +1,7 @@
+# KaizenDesk LDAP Bootstrap
+# Bu dosya OpenLDAP ilk başlatıldığında ou=users OU'sunu oluşturur.
+
+dn: ou=users,dc=kaizendesk,dc=demo
+objectClass: organizationalUnit
+ou: users
+description: KaizenDesk Application Users

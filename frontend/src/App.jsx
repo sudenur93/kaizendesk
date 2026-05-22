@@ -10,6 +10,7 @@ import AgentTicketDetailPage from './pages/AgentTicketDetailPage';
 import ManagerDashboardPage from './pages/ManagerDashboardPage';
 import ManagerSLAPage from './pages/ManagerSLAPage';
 import ManagerTeamPage from './pages/ManagerTeamPage';
+import ManagerApprovalsPage from './pages/ManagerApprovalsPage';
 import PortalShell from './components/PortalShell';
 import { getRole, isLoggedIn } from './services/api';
 
@@ -104,6 +105,14 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={['MANAGER']}>
                 <ManagerTeamPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/manager/approvals"
+            element={
+              <ProtectedRoute allowedRoles={['MANAGER']}>
+                <ManagerApprovalsPage />
               </ProtectedRoute>
             }
           />

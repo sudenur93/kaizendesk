@@ -4,11 +4,13 @@
 
 -- Kullanıcılar
 INSERT INTO users (id, username, full_name, email, role) OVERRIDING SYSTEM VALUE VALUES
-  (1, 'customer1', 'Ali Yılmaz',   'customer1@kaizendesk.demo', 'CUSTOMER'),
-  (2, 'customer2', 'Ayşe Kaya',    'customer2@kaizendesk.demo', 'CUSTOMER'),
-  (3, 'agent1',    'Mehmet Demir', 'agent1@kaizendesk.demo',    'AGENT'),
-  (4, 'sude3',     'Sude Üç',      'sude3@test.com',            'AGENT'),
-  (5, 'manager',   'Fatma Şahin',  'manager@kaizendesk.demo',   'MANAGER')
+  (1, 'customer1',    'Ali Yılmaz',   'customer1@kaizendesk.demo',  'CUSTOMER'),
+  (2, 'customer2',    'Ayşe Kaya',    'customer2@kaizendesk.demo',  'CUSTOMER'),
+  (3, 'agent1',       'Mehmet Demir', 'agent1@kaizendesk.demo',     'AGENT'),
+  (4, 'sude3',        'Sude Üç',      'sude3@test.com',             'AGENT'),
+  (5, 'manager',      'Fatma Şahin',  'manager@kaizendesk.demo',    'MANAGER'),
+  (6, 'agent2',       'Can Yıldız',   'agent2@kaizendesk.demo',     'AGENT'),
+  (7, 'kaizendesk23', 'Kaizen Admin', 'kaizendesk23@gmail.com',     'MANAGER')
 ON CONFLICT (id) DO NOTHING;
 SELECT setval(pg_get_serial_sequence('users','id'), (SELECT MAX(id) FROM users));
 
@@ -168,6 +170,29 @@ OVERRIDING SYSTEM VALUE VALUES
  'MEDIUM', 'NEW', 6, 7, 1, NULL,
  NOW()-'4 hours'::interval, NOW()-'4 hours'::interval,
  NOW()-'4 hours'::interval+'8 hours'::interval, false,
+ NULL, NULL, NULL),
+
+(21, 'KD-021', 'A blok elektrik panosu sigorta atması',
+ 'A bloğu ana elektrik panosunda 3 fazlı sigorta defalarca atıyor. Elektrik kesintisi yaşanıyor, hat durdu.',
+ 'HIGH', 'CLOSED', 7, 10, 1, 6,
+ NOW()-'8 days'::interval, NOW()-'6 days'::interval,
+ NOW()-'8 days'::interval+'4 hours'::interval, false,
+ NOW()-'7 days'::interval, NOW()-'6 days'::interval,
+ 'Aşırı yük tespit edildi. Devre yük dengesi yeniden düzenlendi, sigorta kapasitesi artırıldı.'),
+
+(22, 'KD-022', 'VPN istemcisi güncelleme sonrası bağlanmıyor',
+ 'Cisco AnyConnect 4.10 güncellemesi sonrası uzak çalışanlar VPN''e bağlanamıyor. 15 kişi etkileniyor.',
+ 'MEDIUM', 'RESOLVED', 8, 14, 2, 6,
+ NOW()-'5 days'::interval, NOW()-'3 days'::interval,
+ NOW()-'5 days'::interval+'8 hours'::interval, false,
+ NOW()-'3 days'::interval, NULL,
+ 'VPN profil konfigürasyonu güncellendi, split-tunnel ayarı düzeltildi. Tüm kullanıcılar bağlanabiliyor.'),
+
+(23, 'KD-023', 'Hat-4 konveyör bant hız kontrolü arızası',
+ 'Hat-4 konveyör bandı sabit hızda çalışıyor, hız kontrolörü komutları almıyor. Frekans inverteri alarmlı.',
+ 'HIGH', 'IN_PROGRESS', 5, 5, 1, 6,
+ NOW()-'2 days'::interval, NOW()-'1 day'::interval,
+ NOW()-'2 days'::interval+'4 hours'::interval, false,
  NULL, NULL, NULL);
 
 SELECT setval(pg_get_serial_sequence('tickets','id'), (SELECT MAX(id) FROM tickets));
@@ -177,7 +202,8 @@ INSERT INTO ticket_issue_types (ticket_id, issue_type_id) VALUES
   (1,13),(1,39),(2,27),(3,28),(4,39),(4,52),(5,41),
   (6,6),(7,23),(8,8),(9,5),(10,11),(11,13),(11,56),
   (12,9),(13,43),(13,30),(14,12),(15,15),(16,9),(16,22),
-  (17,27),(18,6),(19,24),(20,21),(20,47);
+  (17,27),(18,6),(19,24),(20,21),(20,47),
+  (21,11),(21,24),(22,41),(23,6),(23,43);
 
 -- YORUMLAR
 INSERT INTO comments (ticket_id, author_id, content, created_at) VALUES
@@ -225,7 +251,20 @@ INSERT INTO comments (ticket_id, author_id, content, created_at) VALUES
 (16, 4, 'Standart 4.2-4.5 bar olmalı. Boya ustasıyla kontrol edin ve bildirin.', NOW()-'20 hours'::interval),
 
 (19, 2, 'D blok 12-15 arası bandalar çalışmıyor. Gece vardiyası etkileniyor.', NOW()-'2 days'::interval),
-(19, 4, 'Tespite geldim. 8 adet balast arızalı. Yedek malzeme deposundan alınıyor.', NOW()-'1 day'::interval);
+(19, 4, 'Tespite geldim. 8 adet balast arızalı. Yedek malzeme deposundan alınıyor.', NOW()-'1 day'::interval),
+
+(21, 1, 'Acil! A blok tamamen karanlık, üretim durdu.', NOW()-'8 days'::interval),
+(21, 6, 'Geldim, 3 fazlı sigorta defalarca atıyor. Aşırı yük şüphesi var.', NOW()-'8 days'::interval+'1 hour'::interval),
+(21, 6, 'Yük analizi tamamlandı. Devre yeniden düzenlendi, çözüldü.', NOW()-'7 days'::interval),
+(21, 1, 'Hat tekrar çalışıyor, çok hızlı çözdünüz teşekkürler!', NOW()-'6 days'::interval),
+
+(22, 2, '4.10 güncellemesi sonrası kimse bağlanamıyor, çalışamıyoruz.', NOW()-'5 days'::interval),
+(22, 6, 'VPN profil konfigürasyonunu inceliyorum, split-tunnel ayarı bozulmuş.', NOW()-'4 days'::interval),
+(22, 6, 'Profil güncellendi, test ettim. Bağlantı sağlandı.', NOW()-'3 days'::interval),
+
+(23, 1, 'Frekans inverteri alarm kodu: F0011. Hat durdu.', NOW()-'2 days'::interval),
+(23, 6, 'Sahaya geldim. Parametre sıfırlama deniyorum.', NOW()-'2 days'::interval+'2 hours'::interval),
+(23, 6, 'Kısmi ilerleme var, inverter çalışıyor ama hız kontrolü hâlâ dengesiz. Takip ediyorum.', NOW()-'1 day'::interval);
 
 -- WORKLOGLAR
 INSERT INTO worklogs (ticket_id, author_id, note, duration_minutes, work_date) VALUES
@@ -254,4 +293,10 @@ INSERT INTO worklogs (ticket_id, author_id, note, duration_minutes, work_date) V
 (18, 3, 'Encoder kablo değişimi', 90, NOW()-'13 days'::interval),
 (18, 3, 'Servo parametre ayarı ve test', 60, NOW()-'13 days'::interval),
 (19, 4, 'Saha tespiti ve arızalı balast sayımı', 45, NOW()-'1 day'::interval),
-(19, 4, 'Balast değişimi (8 adet)', 120, NOW()-'20 hours'::interval);
+(19, 4, 'Balast değişimi (8 adet)', 120, NOW()-'20 hours'::interval),
+(21, 6, 'Saha inceleme ve sigorta tespiti', 45, NOW()-'8 days'::interval),
+(21, 6, 'Yük dengesi analizi ve sigorta değişimi', 90, NOW()-'7 days'::interval),
+(22, 6, 'VPN profil analizi ve konfigürasyon testi', 60, NOW()-'4 days'::interval),
+(22, 6, 'Split-tunnel düzeltme ve kullanıcı testi', 45, NOW()-'3 days'::interval),
+(23, 6, 'Frekans inverteri hata kodu analizi', 60, NOW()-'2 days'::interval),
+(23, 6, 'Parametre sıfırlama ve test çalışması', 75, NOW()-'1 day'::interval);

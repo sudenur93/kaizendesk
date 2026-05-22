@@ -74,12 +74,13 @@ public class DashboardService {
                         Collectors.counting()));
         resp.setProductCounts(productCounts);
 
-        long slaBreached = all.stream().filter(Ticket::isSlaBreached).count();
+        Instant now = Instant.now();
+        long slaBreached = all.stream().filter(t -> SlaEvaluator.isBreached(t, now)).count();
         resp.setSlaBreachedCount(slaBreached);
 
         long doneTotal = all.stream().filter(t -> DONE_STATUSES.contains(t.getStatus())).count();
         long doneAndNotBreached = all.stream()
-                .filter(t -> DONE_STATUSES.contains(t.getStatus()) && !t.isSlaBreached())
+                .filter(t -> DONE_STATUSES.contains(t.getStatus()) && !SlaEvaluator.isBreached(t, now))
                 .count();
         resp.setSlaComplianceRate(doneTotal == 0 ? 100.0 : Math.round(doneAndNotBreached * 1000.0 / doneTotal) / 10.0);
 

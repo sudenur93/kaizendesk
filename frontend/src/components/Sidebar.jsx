@@ -25,8 +25,11 @@ const NAVS = {
     items: [
       { id: 'm-dash', to: '/manager/dashboard', label: 'Genel Bakış', icon: <Ic.Dashboard /> },
       { id: 'm-tickets', to: '/agent/tickets', label: 'Tüm Talepler', icon: <Ic.List /> },
+      { id: 'm-kanban', to: '/agent/tickets?view=kanban', label: 'Kanban', icon: <Ic.Kanban /> },
+      { id: 'm-mine', to: '/agent/tickets?mine=1', label: 'Bana Atananlar', icon: <Ic.Inbox /> },
       { id: 'm-sla', to: '/manager/sla', label: 'SLA İzleme', icon: <Ic.Clock /> },
       { id: 'm-team', to: '/manager/team', label: 'Ekip', icon: <Ic.Users /> },
+      { id: 'm-approvals', to: '/manager/approvals', label: 'Onay Bekleyenler', icon: <Ic.AlertTriangle /> },
     ],
   },
 };
@@ -36,7 +39,7 @@ function isActive(currentPath, currentSearch, item) {
     const [path, query] = item.to.split('?');
     return currentPath === path && currentSearch.includes(query);
   }
-  if (item.id === 'a-list') {
+  if (item.id === 'a-list' || item.id === 'm-tickets') {
     return currentPath === '/agent/tickets' && currentSearch === '';
   }
   return currentPath === item.to;

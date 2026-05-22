@@ -3,7 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import { useToasts } from './Common';
-import { getCurrentUserProfile, getNotifications, getRole } from '../services/api';
+import { getCurrentUserProfile, getNotifications, getRole, getPendingUsers } from '../services/api';
 
 const ShellContext = createContext({});
 
@@ -44,6 +44,7 @@ export default function PortalShell() {
   const role = getRole();
   const [user, setUser] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [pendingCount, setPendingCount] = useState(0);
   const [search, setSearch] = useState('');
   const [theme, setTheme] = useState(readStoredTheme);
   const [pushToast, toastsNode] = useToasts();
@@ -73,18 +74,27 @@ export default function PortalShell() {
     let cancelled = false;
     function load() {
       getNotifications()
-        .then((data) => {
-          if (!cancelled) setNotifications(data);
-        })
+        .then((data) => { if (!cancelled) setNotifications(data); })
         .catch(() => {});
     }
     load();
     const id = setInterval(load, 30000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
+    return () => { cancelled = true; clearInterval(id); };
   }, []);
+
+  // Manager ise onay bekleyen kullanıcı sayısını çek
+  useEffect(() => {
+    if (role !== 'MANAGER') return;
+    let cancelled = false;
+    function loadPending() {
+      getPendingUsers()
+        .then((data) => { if (!cancelled) setPendingCount(data.length); })
+        .catch(() => {});
+    }
+    loadPending();
+    const id = setInterval(loadPending, 30000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [role]);
 
   const crumbs = useMemo(() => buildCrumbs(location.pathname), [location.pathname]);
 
@@ -104,7 +114,7 @@ export default function PortalShell() {
   return (
     <ShellContext.Provider value={ctx}>
       <div className="app">
-        <Sidebar role={role} user={user} />
+        <Sidebar role={role} user={user} counts={{ 'm-approvals': pendingCount > 0 ? pendingCount : undefined }} />
         <div className="main">
           <Topbar
             crumbs={crumbs}

@@ -11,18 +11,18 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class OpenApiConfig {
 
-    @Bean
-    public OpenAPI kaizenDeskOpenAPI() {
-        return new OpenAPI()
-                .info(new Info()
-                        .title("KaizenDesk API")
-                        .description("IT Service Management (Ticket) Uygulaması")
-                        .version("1.0"))
-                .addSecurityItem(new SecurityRequirement().addList("bearer-jwt"))
-                .components(new Components()
-                        .addSecuritySchemes("bearer-jwt", new SecurityScheme()
-                                .type(SecurityScheme.Type.HTTP)
-                                .scheme("bearer")
-                                .bearerFormat("JWT")));
-    }
+        @Bean
+        public OpenAPI kaizenDeskOpenAPI() {
+                return new OpenAPI()
+                                .info(new Info()
+                                                .title("KaizenDesk API")
+                                                .description("IT Service Management (Ticket) Uygulaması")
+                                                .version("1.0"))
+                                .addSecurityItem(new SecurityRequirement().addList("bearer-jwt"))
+                                .components(new Components()
+                                                .addSecuritySchemes("bearer-jwt", new SecurityScheme()
+                                                                .type(SecurityScheme.Type.HTTP)
+                                                                .scheme("bearer")
+                                                                .bearerFormat("JWT")));
+        }
 }
