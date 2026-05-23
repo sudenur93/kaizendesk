@@ -1,36 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
+import {
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from 'recharts';
 import Ic from '../components/Icons';
-import { Avatar, PriorityBadge, SlaBar, StatusBadge, fmtDate, getInitials, slaInfo } from '../components/Common';
+import { Avatar, PriorityBadge, SlaBar, StatusBadge, Skeleton, SkeletonCard, SkeletonTable, fmtDate, getInitials, slaInfo } from '../components/Common';
 import { getDashboardSummary, getTickets } from '../services/api';
 
-/* ── SVG mini-charts ── */
-function Donut({ data, size = 160, thickness = 22, centerLabel, centerValue }) {
-  const total = data.reduce((s, d) => s + d.value, 0);
-  const r = (size - thickness) / 2;
-  const C = 2 * Math.PI * r;
-  let acc = 0;
-  return (
-    <svg width={size} height={size}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--bg-soft)" strokeWidth={thickness} />
-      {data.map((d, i) => {
-        const len = total > 0 ? (d.value / total) * C : 0;
-        const dash = `${len} ${C - len}`;
-        const offset = -acc;
-        acc += len;
-        return (
-          <circle key={i} cx={size / 2} cy={size / 2} r={r} fill="none"
-            stroke={d.color} strokeWidth={thickness}
-            strokeDasharray={dash} strokeDashoffset={offset}
-            transform={`rotate(-90 ${size / 2} ${size / 2})`} />
-        );
-      })}
-      <text x="50%" y="47%" textAnchor="middle" fontSize="22" fontWeight="700" fill="var(--text)">{centerValue ?? total}</text>
-      <text x="50%" y="60%" textAnchor="middle" fontSize="9.5" fill="var(--text-3)" letterSpacing="0.06em">{centerLabel || 'TOPLAM'}</text>
-    </svg>
-  );
-}
-
+/* ── ComplianceRing (SVG, sade) ── */
 function ComplianceRing({ pct, size = 130, thickness = 11 }) {
   const r = (size - thickness) / 2;
   const C = 2 * Math.PI * r;
@@ -38,63 +16,50 @@ function ComplianceRing({ pct, size = 130, thickness = 11 }) {
   const color = pct >= 90 ? 'var(--ok)' : pct >= 75 ? 'var(--warn)' : 'var(--err)';
   return (
     <svg width={size} height={size}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--bg-soft)" strokeWidth={thickness} />
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none"
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--bg-soft)" strokeWidth={thickness} />
+      <circle cx={size/2} cy={size/2} r={r} fill="none"
         stroke={color} strokeWidth={thickness}
         strokeDasharray={`${len} ${C - len}`}
         strokeLinecap="round"
-        transform={`rotate(-90 ${size / 2} ${size / 2})`} />
+        transform={`rotate(-90 ${size/2} ${size/2})`} />
       <text x="50%" y="46%" textAnchor="middle" fontSize="22" fontWeight="700" fill="var(--text)">%{pct}</text>
       <text x="50%" y="60%" textAnchor="middle" fontSize="9" fill="var(--text-3)" letterSpacing="0.06em">SLA UYUMU</text>
     </svg>
   );
 }
 
-function TrendChart({ opened, closed, labels, height = 160 }) {
-  const w = 540;
-  const h = height;
-  const pad = { l: 26, r: 10, t: 12, b: 22 };
-  const innerW = w - pad.l - pad.r;
-  const innerH = h - pad.t - pad.b;
-  const maxY = Math.max(...opened, ...closed, 1);
-  const n = labels.length;
-  const xs = labels.map((_, i) => pad.l + (n > 1 ? (i / (n - 1)) * innerW : innerW / 2));
-  const yFor = (v) => pad.t + innerH - (v / maxY) * innerH;
-  const line = (arr) => arr.map((v, i) => `${i === 0 ? 'M' : 'L'} ${xs[i]} ${yFor(v)}`).join(' ');
-  const area = (arr) => `${line(arr)} L ${xs[xs.length - 1]} ${pad.t + innerH} L ${xs[0]} ${pad.t + innerH} Z`;
-
+/* ── Custom tooltip ── */
+function ChartTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ width: '100%', height, display: 'block' }}>
-      <defs>
-        <linearGradient id="og" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="var(--warn)" stopOpacity="0.3" />
-          <stop offset="100%" stopColor="var(--warn)" stopOpacity="0" />
-        </linearGradient>
-        <linearGradient id="rg" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="var(--ok)" stopOpacity="0.25" />
-          <stop offset="100%" stopColor="var(--ok)" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      {[0, 1, 2, 3].map((i) => {
-        const y = pad.t + (i / 3) * innerH;
-        const v = Math.round(maxY * (1 - i / 3));
-        return (
-          <g key={i}>
-            <line x1={pad.l} x2={w - pad.r} y1={y} y2={y} stroke="var(--hairline)" strokeWidth="1" />
-            <text x={pad.l - 4} y={y + 3} fontSize="9" fill="var(--text-3)" textAnchor="end">{v}</text>
-          </g>
-        );
-      })}
-      <path d={area(opened)} fill="url(#og)" />
-      <path d={line(opened)} fill="none" stroke="var(--warn)" strokeWidth="2" />
-      <path d={area(closed)} fill="url(#rg)" />
-      <path d={line(closed)} fill="none" stroke="var(--ok)" strokeWidth="2" />
-      {opened.map((v, i) => <circle key={`o${i}`} cx={xs[i]} cy={yFor(v)} r="2.5" fill="var(--warn)" />)}
-      {closed.map((v, i) => <circle key={`r${i}`} cx={xs[i]} cy={yFor(v)} r="2.5" fill="var(--ok)" />)}
-      {labels.map((l, i) =>
-        i % 2 === 0 ? <text key={i} x={xs[i]} y={h - 5} fontSize="9" fill="var(--text-3)" textAnchor="middle">{l}</text> : null
-      )}
-    </svg>
+    <div style={{
+      background: 'var(--surface)', border: '1px solid var(--hairline)',
+      borderRadius: 8, padding: '10px 14px', fontSize: 12,
+      boxShadow: 'var(--shadow-pop)',
+    }}>
+      <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--text-2)' }}>{label}</div>
+      {payload.map((p) => (
+        <div key={p.name} style={{ color: p.color, display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ width: 8, height: 8, borderRadius: 2, background: p.color, flexShrink: 0 }} />
+          <span>{p.name}: <b>{p.value}</b></span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PieTooltip({ active, payload }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0];
+  return (
+    <div style={{
+      background: 'var(--surface)', border: '1px solid var(--hairline)',
+      borderRadius: 8, padding: '8px 12px', fontSize: 12,
+      boxShadow: 'var(--shadow-pop)',
+    }}>
+      <span style={{ color: d.payload.fill }}>{d.name}: </span>
+      <b>{d.value}</b>
+    </div>
   );
 }
 
@@ -103,8 +68,7 @@ function fmtMinutes(min) {
   if (min == null) return '—';
   const h = Math.floor(min / 60);
   const m = min % 60;
-  if (h === 0) return `${m}dk`;
-  return `${h}s ${m}dk`;
+  return h === 0 ? `${m}dk` : `${h}s ${m}dk`;
 }
 
 const STATUS_COLOR = {
@@ -120,6 +84,34 @@ const DATE_PRESETS = [
   { key: '30', label: 'Son 30 gün' },
   { key: '90', label: 'Son 90 gün' },
 ];
+
+/* ── KPI Card with optional trend ── */
+function KpiCard({ label, value, tone, sub, icon }) {
+  return (
+    <div className="card" style={{ padding: '18px 20px', display: 'flex', gap: 14, alignItems: 'center' }}>
+      {icon && (
+        <div style={{
+          width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: tone === 'bad' ? 'color-mix(in oklab,var(--err) 12%,var(--bg-soft))'
+            : tone === 'warn' ? 'color-mix(in oklab,var(--warn) 12%,var(--bg-soft))'
+            : tone === 'ok' ? 'color-mix(in oklab,var(--ok) 12%,var(--bg-soft))'
+            : 'var(--bg-soft)',
+          color: tone === 'bad' ? 'var(--err)' : tone === 'warn' ? 'var(--warn)' : tone === 'ok' ? 'var(--ok)' : 'var(--text-2)',
+        }}>
+          {icon}
+        </div>
+      )}
+      <div>
+        <div className="muted" style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 4 }}>{label}</div>
+        <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1, color: tone === 'bad' ? 'var(--err)' : tone === 'warn' ? 'var(--warn)' : 'var(--text)' }}>
+          {value ?? '—'}
+        </div>
+        {sub && <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>{sub}</div>}
+      </div>
+    </div>
+  );
+}
 
 export default function ManagerDashboardPage() {
   const navigate = useNavigate();
@@ -150,8 +142,7 @@ export default function ManagerDashboardPage() {
           .sort((a, b) => {
             if (a.slaBreached && !b.slaBreached) return -1;
             if (!a.slaBreached && b.slaBreached) return 1;
-            const sa = slaInfo(a), sb = slaInfo(b);
-            return (sa.pct ?? 0) - (sb.pct ?? 0);
+            return (slaInfo(a).pct ?? 0) - (slaInfo(b).pct ?? 0);
           })
           .slice(0, 6);
         setUrgentTickets(urgent);
@@ -162,28 +153,40 @@ export default function ManagerDashboardPage() {
   }, [from, to]);
 
   /* chart data */
-  const statusDonut = useMemo(() => {
+  const trendData = useMemo(() => {
+    if (!data?.dailyCreatedCounts?.length) return [];
+    return data.dailyCreatedCounts.map((d, i) => {
+      const parts = d.date.split('-');
+      return {
+        label: `${parseInt(parts[2], 10)}/${parseInt(parts[1], 10)}`,
+        'Açılan': d.count,
+        'Çözülen': data.dailyClosedCounts?.[i]?.count ?? 0,
+      };
+    });
+  }, [data]);
+
+  const pieData = useMemo(() => {
     if (!data?.statusCounts) return [];
     return [
-      { label: 'Yeni', value: data.statusCounts.NEW || 0, color: STATUS_COLOR.NEW },
-      { label: 'İşlemde', value: data.statusCounts.IN_PROGRESS || 0, color: STATUS_COLOR.IN_PROGRESS },
-      { label: 'Müşteri', value: data.statusCounts.WAITING_FOR_CUSTOMER || 0, color: STATUS_COLOR.WAITING_FOR_CUSTOMER },
-      { label: 'Çözüldü', value: data.statusCounts.RESOLVED || 0, color: STATUS_COLOR.RESOLVED },
-      { label: 'Kapalı', value: data.statusCounts.CLOSED || 0, color: STATUS_COLOR.CLOSED },
+      { name: 'Yeni', value: data.statusCounts.NEW || 0, fill: STATUS_COLOR.NEW },
+      { name: 'İşlemde', value: data.statusCounts.IN_PROGRESS || 0, fill: STATUS_COLOR.IN_PROGRESS },
+      { name: 'Müşteri', value: data.statusCounts.WAITING_FOR_CUSTOMER || 0, fill: STATUS_COLOR.WAITING_FOR_CUSTOMER },
+      { name: 'Çözüldü', value: data.statusCounts.RESOLVED || 0, fill: STATUS_COLOR.RESOLVED },
+      { name: 'Kapalı', value: data.statusCounts.CLOSED || 0, fill: STATUS_COLOR.CLOSED },
     ].filter((d) => d.value > 0);
   }, [data]);
 
-  const { trendOpened, trendClosed, trendLabels } = useMemo(() => {
-    if (!data?.dailyCreatedCounts?.length) return { trendOpened: [], trendClosed: [], trendLabels: [] };
-    const labels = data.dailyCreatedCounts.map((d) => {
-      const parts = d.date.split('-');
-      return `${parseInt(parts[2], 10)}/${parseInt(parts[1], 10)}`;
-    });
-    return {
-      trendOpened: data.dailyCreatedCounts.map((d) => d.count),
-      trendClosed: (data.dailyClosedCounts || []).map((d) => d.count),
-      trendLabels: labels,
-    };
+  const agentBarData = useMemo(() => {
+    if (!data?.agentPerformances?.length) return [];
+    return [...data.agentPerformances]
+      .sort((a, b) => (b.resolvedCount || 0) - (a.resolvedCount || 0))
+      .slice(0, 6)
+      .map((ap) => ({
+        name: (ap.agentName || '?').split(' ')[0],
+        'Atanan': ap.assignedCount || 0,
+        'Çözülen': ap.resolvedCount || 0,
+        'Kapatılan': ap.closedCount || 0,
+      }));
   }, [data]);
 
   const slaRate = data?.slaComplianceRate != null ? Math.round(data.slaComplianceRate) : null;
@@ -194,18 +197,19 @@ export default function ManagerDashboardPage() {
       <div className="page-head">
         <div>
           <h1 className="page-title">Yönetici Paneli</h1>
-          <div className="page-sub">
-            {loading ? 'Yükleniyor…' : error ? error : fmtDate(Date.now(), 'datetime')}
-          </div>
+          <div className="page-sub">{loading ? 'Yükleniyor…' : error || fmtDate(Date.now(), 'datetime')}</div>
         </div>
         <div className="row" style={{ gap: 8 }}>
           <div className="seg" style={{ display: 'inline-flex', background: 'var(--bg-soft)', borderRadius: 7, padding: 3 }}>
             {DATE_PRESETS.map((p) => (
               <button key={p.key} type="button" onClick={() => setRangeDays(p.key)}
-                style={{ border: 0, background: rangeDays === p.key ? 'var(--surface)' : 'transparent',
+                style={{
+                  border: 0, background: rangeDays === p.key ? 'var(--surface)' : 'transparent',
                   color: rangeDays === p.key ? 'var(--text)' : 'var(--text-2)',
-                  padding: '5px 12px', fontSize: 12.5, borderRadius: 5, fontWeight: rangeDays === p.key ? 500 : 400,
-                  boxShadow: rangeDays === p.key ? 'var(--shadow-1)' : 'none', cursor: 'pointer' }}>
+                  padding: '5px 12px', fontSize: 12.5, borderRadius: 5,
+                  fontWeight: rangeDays === p.key ? 500 : 400,
+                  boxShadow: rangeDays === p.key ? 'var(--shadow-1)' : 'none', cursor: 'pointer',
+                }}>
                 {p.label}
               </button>
             ))}
@@ -223,63 +227,83 @@ export default function ManagerDashboardPage() {
       )}
 
       {/* ── KPI strip ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 18 }}>
-        {[
-          { label: 'Açık Talepler', value: openCount, tone: 'warn' },
-          { label: 'Bugün Kapatılan', value: data?.closedToday, tone: null },
-          { label: 'SLA İhlali', value: data?.slaBreachedCount, tone: 'bad' },
-          { label: 'Ort. Çözüm', value: fmtMinutes(data?.avgResolutionMinutes), tone: null, sub: 'çözüm süresi' },
-        ].map((kpi) => (
-          <div key={kpi.label} className="card" style={{ padding: '16px 18px' }}>
-            <div className="muted" style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 8 }}>{kpi.label}</div>
-            <div style={{ fontSize: 30, fontWeight: 700, lineHeight: 1, color: kpi.tone === 'bad' ? 'var(--err)' : kpi.tone === 'warn' ? 'var(--warn)' : 'var(--text)' }}>
-              {kpi.value ?? '—'}
-            </div>
-            {kpi.sub && <div className="muted" style={{ fontSize: 11.5, marginTop: 5 }}>{kpi.sub}</div>}
-          </div>
-        ))}
-      </div>
+      {loading ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 18 }}>
+          {[1,2,3,4].map(i => <SkeletonCard key={i} rows={2} />)}
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 18 }}>
+          <KpiCard label="Açık Talepler" value={openCount} tone="warn" icon={<Ic.Inbox size={18} />} />
+          <KpiCard label="Bugün Kapatılan" value={data?.closedToday} tone="ok" icon={<Ic.Check size={18} />} />
+          <KpiCard label="SLA İhlali" value={data?.slaBreachedCount} tone="bad" icon={<Ic.AlertTriangle size={18} />} />
+          <KpiCard label="Ort. Çözüm" value={fmtMinutes(data?.avgResolutionMinutes)} sub="çözüm süresi" icon={<Ic.Clock size={18} />} />
+        </div>
+      )}
 
-      {/* ── Row 1: Trend + Status donut ── */}
+      {/* ── Row 1: Trend chart + Pie ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 18, marginBottom: 18 }}>
         <div className="card">
           <div className="card-head">
-            <div>
-              <h3>Talep Hacmi Trendi</h3>
-              <div className="sub">Son 14 gün · açılan vs çözülen</div>
-            </div>
+            <div><h3>Talep Hacmi Trendi</h3><div className="sub">Açılan vs çözülen</div></div>
             <div className="row" style={{ gap: 14 }}>
               <span className="row" style={{ gap: 5, fontSize: 12, color: 'var(--text-2)' }}>
-                <span style={{ width: 9, height: 9, borderRadius: 2, background: 'var(--warn)' }} />Açılan
+                <span style={{ width: 9, height: 9, borderRadius: 2, background: '#f59e0b' }} />Açılan
               </span>
               <span className="row" style={{ gap: 5, fontSize: 12, color: 'var(--text-2)' }}>
-                <span style={{ width: 9, height: 9, borderRadius: 2, background: 'var(--ok)' }} />Çözülen
+                <span style={{ width: 9, height: 9, borderRadius: 2, background: '#10b981' }} />Çözülen
               </span>
             </div>
           </div>
-          <div style={{ padding: '16px 20px 8px' }}>
-            {trendLabels.length > 0 ? (
-              <TrendChart opened={trendOpened} closed={trendClosed} labels={trendLabels} />
+          <div style={{ padding: '8px 20px 16px' }}>
+            {loading ? (
+              <Skeleton height={180} radius={8} />
+            ) : trendData.length === 0 ? (
+              <div className="muted" style={{ textAlign: 'center', padding: '60px 0', fontSize: 13 }}>Bu dönemde veri yok.</div>
             ) : (
-              <div className="muted" style={{ textAlign: 'center', padding: '40px 0', fontSize: 13 }}>Veri yükleniyor…</div>
+              <ResponsiveContainer width="100%" height={200}>
+                <AreaChart data={trendData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorAcilan" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorCozulen" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--hairline)" />
+                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--text-3)' }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--text-3)' }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Area type="monotone" dataKey="Açılan" stroke="#f59e0b" strokeWidth={2} fill="url(#colorAcilan)" dot={{ r: 3, fill: '#f59e0b' }} activeDot={{ r: 5 }} />
+                  <Area type="monotone" dataKey="Çözülen" stroke="#10b981" strokeWidth={2} fill="url(#colorCozulen)" dot={{ r: 3, fill: '#10b981' }} activeDot={{ r: 5 }} />
+                </AreaChart>
+              </ResponsiveContainer>
             )}
           </div>
-          {trendLabels.length > 0 && (
+          {!loading && trendData.length > 0 && (
             <div className="row" style={{ padding: '10px 20px 14px', gap: 24, borderTop: '1px solid var(--hairline)' }}>
               <div>
                 <div className="muted" style={{ fontSize: 11 }}>Toplam Açılan</div>
-                <div className="mono" style={{ fontSize: 18, fontWeight: 700 }}>{trendOpened.reduce((a, b) => a + b, 0)}</div>
+                <div className="mono" style={{ fontSize: 18, fontWeight: 700 }}>
+                  {trendData.reduce((a, d) => a + d['Açılan'], 0)}
+                </div>
               </div>
               <div>
                 <div className="muted" style={{ fontSize: 11 }}>Toplam Çözülen</div>
-                <div className="mono" style={{ fontSize: 18, fontWeight: 700, color: 'var(--ok)' }}>{trendClosed.reduce((a, b) => a + b, 0)}</div>
+                <div className="mono" style={{ fontSize: 18, fontWeight: 700, color: '#10b981' }}>
+                  {trendData.reduce((a, d) => a + d['Çözülen'], 0)}
+                </div>
               </div>
               <span className="spacer" />
               <div>
                 <div className="muted" style={{ fontSize: 11 }}>Net Bakiye</div>
                 <div className="mono" style={{ fontSize: 18, fontWeight: 700 }}>
-                  {trendOpened.reduce((a, b) => a + b, 0) - trendClosed.reduce((a, b) => a + b, 0) >= 0 ? '+' : ''}
-                  {trendOpened.reduce((a, b) => a + b, 0) - trendClosed.reduce((a, b) => a + b, 0)}
+                  {(() => {
+                    const net = trendData.reduce((a, d) => a + d['Açılan'] - d['Çözülen'], 0);
+                    return (net >= 0 ? '+' : '') + net;
+                  })()}
                 </div>
               </div>
             </div>
@@ -288,50 +312,68 @@ export default function ManagerDashboardPage() {
 
         <div className="card">
           <div className="card-head">
-            <div><h3>Açık Talep Dağılımı</h3><div className="sub">Statüye göre kırılım</div></div>
+            <div><h3>Talep Dağılımı</h3><div className="sub">Statüye göre kırılım</div></div>
           </div>
-          <div style={{ padding: '16px 20px 20px', display: 'flex', alignItems: 'center', gap: 20 }}>
-            <Donut data={statusDonut} centerLabel="AÇIK" centerValue={openCount} />
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {statusDonut.map((d) => {
-                const pct = openCount > 0 ? Math.round((d.value / openCount) * 100) : 0;
-                return (
-                  <div key={d.label}>
-                    <div className="row" style={{ gap: 6, marginBottom: 3 }}>
-                      <span style={{ width: 9, height: 9, borderRadius: 2, background: d.color, flexShrink: 0 }} />
-                      <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{d.label}</span>
-                      <span className="spacer" />
-                      <span className="mono" style={{ fontSize: 12, fontWeight: 600 }}>{d.value}</span>
-                      <span className="muted mono" style={{ fontSize: 10.5, width: 28, textAlign: 'right' }}>%{pct}</span>
-                    </div>
-                    <div style={{ height: 3, background: 'var(--bg-soft)', borderRadius: 99 }}>
-                      <div style={{ height: '100%', width: `${pct}%`, background: d.color, borderRadius: 99 }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+          <div style={{ padding: '8px 20px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+            {loading ? (
+              <Skeleton height={200} radius={100} width={200} style={{ borderRadius: '50%' }} />
+            ) : pieData.length === 0 ? (
+              <div className="muted" style={{ padding: '40px 0', fontSize: 13 }}>Veri yok</div>
+            ) : (
+              <>
+                <ResponsiveContainer width="100%" height={180}>
+                  <PieChart>
+                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={80}
+                      paddingAngle={3} dataKey="value" animationBegin={0} animationDuration={800}>
+                      {pieData.map((entry, i) => (
+                        <Cell key={i} fill={entry.fill} stroke="none" />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<PieTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  {pieData.map((d) => {
+                    const pct = openCount > 0 ? Math.round((d.value / openCount) * 100) : 0;
+                    return (
+                      <div key={d.name}>
+                        <div className="row" style={{ gap: 6, marginBottom: 3 }}>
+                          <span style={{ width: 9, height: 9, borderRadius: 2, background: d.fill, flexShrink: 0 }} />
+                          <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{d.name}</span>
+                          <span className="spacer" />
+                          <span className="mono" style={{ fontSize: 12, fontWeight: 600 }}>{d.value}</span>
+                          <span className="muted mono" style={{ fontSize: 10.5, width: 28, textAlign: 'right' }}>%{pct}</span>
+                        </div>
+                        <div style={{ height: 3, background: 'var(--bg-soft)', borderRadius: 99 }}>
+                          <div style={{ height: '100%', width: `${pct}%`, background: d.fill, borderRadius: 99, transition: 'width 0.6s ease' }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
 
-      {/* ── Row 2: SLA risk list + SLA compliance ── */}
+      {/* ── Row 2: SLA risk + SLA performance ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 18, marginBottom: 18 }}>
         <div className="card">
           <div className="card-head">
-            <div><h3>Aciliyet Listesi</h3><div className="sub">SLA süresi dolmak üzere · hemen aksiyon</div></div>
+            <div><h3>Aciliyet Listesi</h3><div className="sub">SLA süresi dolmak üzere</div></div>
             <button type="button" className="btn btn-sm btn-ghost" onClick={() => navigate('/manager/sla')}>Tümünü gör →</button>
           </div>
-          <table className="tbl">
-            <tbody>
-              {urgentTickets.length === 0 ? (
-                <tr><td colSpan="4" style={{ padding: '32px', textAlign: 'center' }}>
-                  <div className="row" style={{ justifyContent: 'center', gap: 8, color: 'var(--ok)', fontSize: 13 }}>
-                    <Ic.Check size={14} /> SLA riski olan açık talep yok
-                  </div>
-                </td></tr>
-              ) : (
-                urgentTickets.map((t) => (
+          {loading ? <SkeletonTable rows={4} cols={4} /> : (
+            <table className="tbl">
+              <tbody>
+                {urgentTickets.length === 0 ? (
+                  <tr><td colSpan="4" style={{ padding: '32px', textAlign: 'center' }}>
+                    <div className="row" style={{ justifyContent: 'center', gap: 8, color: 'var(--ok)', fontSize: 13 }}>
+                      <Ic.Check size={14} /> SLA riski olan açık talep yok
+                    </div>
+                  </td></tr>
+                ) : urgentTickets.map((t) => (
                   <tr key={t.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/agent/tickets/${t.id}`)}>
                     <td className="id" style={{ width: 74 }}>#{t.id}</td>
                     <td className="ttl">
@@ -345,20 +387,22 @@ export default function ManagerDashboardPage() {
                         : <span className="muted" style={{ fontSize: 12 }}>Atanmamış</span>}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
 
         <div className="card">
           <div className="card-head">
-            <div><h3>SLA Performansı</h3><div className="sub">Genel uyum oranı ve risk durumu</div></div>
+            <div><h3>SLA Performansı</h3><div className="sub">Genel uyum oranı</div></div>
           </div>
           <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 20 }}>
-            <ComplianceRing pct={slaRate ?? 0} />
+            {loading ? <Skeleton width={130} height={130} style={{ borderRadius: '50%' }} /> : (
+              <ComplianceRing pct={slaRate ?? 0} />
+            )}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {[
+              {loading ? <SkeletonCard rows={2} /> : [
                 { label: 'Hedefte', value: (data?.totalTickets || 0) - (data?.slaBreachedCount || 0), color: 'var(--ok)' },
                 { label: 'SLA İhlali', value: data?.slaBreachedCount, color: 'var(--err)' },
               ].map((r) => (
@@ -378,45 +422,31 @@ export default function ManagerDashboardPage() {
         </div>
       </div>
 
-      {/* ── Row 3: Team performance ── */}
-      {data?.agentPerformances?.length > 0 && (
+      {/* ── Row 3: Agent performance bar chart ── */}
+      {(loading || data?.agentPerformances?.length > 0) && (
         <div className="card">
           <div className="card-head">
-            <div><h3>Ekip Performansı</h3><div className="sub">Seçili dönemde atama ve çözüm sayıları</div></div>
+            <div><h3>Ekip Performansı</h3><div className="sub">Atama ve çözüm sayıları</div></div>
             <button type="button" className="btn btn-sm btn-ghost" onClick={() => navigate('/manager/team')}>Detay →</button>
           </div>
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>Uzman</th>
-                <th style={{ width: 100, textAlign: 'right' }}>Atanan</th>
-                <th style={{ width: 100, textAlign: 'right' }}>Çözülen</th>
-                <th style={{ width: 100, textAlign: 'right' }}>Kapatılan</th>
-                <th style={{ width: 140, textAlign: 'right' }}>Ort. Çözüm</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...data.agentPerformances].sort((a, b) => (b.resolvedCount || 0) - (a.resolvedCount || 0)).map((ap, i) => (
-                <tr key={ap.agentId}>
-                  <td>
-                    <div className="row" style={{ gap: 8 }}>
-                      <Avatar initials={getInitials(ap.agentName || '?')} size="sm" />
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
-                          {ap.agentName || `#${ap.agentId}`}
-                          {i === 0 && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 99, background: 'color-mix(in oklab, var(--ok) 14%, var(--bg-soft))', color: 'var(--ok)', fontWeight: 600 }}>TOP</span>}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="mono" style={{ textAlign: 'right' }}>{ap.assignedCount}</td>
-                  <td className="mono" style={{ textAlign: 'right', fontWeight: 600 }}>{ap.resolvedCount}</td>
-                  <td className="mono" style={{ textAlign: 'right' }}>{ap.closedCount}</td>
-                  <td className="mono" style={{ textAlign: 'right', color: 'var(--text-2)' }}>{fmtMinutes(ap.avgResolutionMinutes)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {loading ? (
+            <div style={{ padding: '16px 20px' }}><Skeleton height={200} radius={8} /></div>
+          ) : (
+            <div style={{ padding: '8px 20px 20px' }}>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={agentBarData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }} barGap={4}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--hairline)" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'var(--text-2)' }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--text-3)' }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip content={<ChartTooltip />} cursor={{ fill: 'var(--bg-soft)' }} />
+                  <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+                  <Bar dataKey="Atanan" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                  <Bar dataKey="Çözülen" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                  <Bar dataKey="Kapatılan" fill="#9aa0a8" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -4,6 +4,7 @@ import Ic from '../components/Icons';
 import {
   PriorityBadge,
   SlaBar,
+  SkeletonTable,
   STATUS,
   StatusBadge,
   fmtDate,
@@ -199,8 +200,8 @@ export default function CustomerTicketsPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="muted" style={{ padding: '40px', textAlign: 'center' }}>
-                    Talepler yükleniyor…
+                  <td colSpan="6" style={{ padding: 0 }}>
+                    <SkeletonTable rows={5} cols={5} />
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (

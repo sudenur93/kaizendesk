@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import Ic from '../components/Icons';
-import { PriorityBadge, SlaBar, StatusBadge, fmtDate, slaInfo } from '../components/Common';
+import { PriorityBadge, SlaBar, SkeletonTable, StatusBadge, fmtDate, slaInfo } from '../components/Common';
 import {
   assignTicket,
   getCurrentUserProfile,
@@ -443,8 +443,8 @@ export default function AgentTicketsPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={ownerScope === 'unassigned' ? 7 : ownerScope === 'all' || ownerScope === 'others' ? 7 : 6} className="muted" style={{ padding: 40, textAlign: 'center' }}>
-                      Talepler yükleniyor…
+                    <td colSpan={ownerScope === 'unassigned' ? 7 : 6} style={{ padding: 0 }}>
+                      <SkeletonTable rows={6} cols={5} />
                     </td>
                   </tr>
                 ) : visibleTickets.length === 0 ? (

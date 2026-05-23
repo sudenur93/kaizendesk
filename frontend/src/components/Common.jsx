@@ -107,6 +107,47 @@ export function SlaBar({ ticket }) {
   );
 }
 
+/* ── Skeleton loading ── */
+export function Skeleton({ width = '100%', height = 16, radius = 6, style = {} }) {
+  return (
+    <div style={{
+      width, height, borderRadius: radius,
+      background: 'var(--bg-soft)',
+      animation: 'skeleton-pulse 1.4s ease-in-out infinite',
+      ...style,
+    }} />
+  );
+}
+
+export function SkeletonCard({ rows = 3 }) {
+  return (
+    <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <Skeleton width="40%" height={14} />
+      {Array.from({ length: rows }).map((_, i) => (
+        <Skeleton key={i} width={i === rows - 1 ? '60%' : '100%'} height={12} />
+      ))}
+    </div>
+  );
+}
+
+export function SkeletonTable({ rows = 5, cols = 4 }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} style={{
+          display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`,
+          gap: 16, padding: '12px 16px',
+          borderBottom: '1px solid var(--hairline)',
+        }}>
+          {Array.from({ length: cols }).map((_, j) => (
+            <Skeleton key={j} height={12} width={j === 0 ? '80%' : '60%'} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function useToasts() {
   const [list, setList] = useState([]);
   const push = useCallback((text) => {
