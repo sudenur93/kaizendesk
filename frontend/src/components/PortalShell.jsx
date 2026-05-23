@@ -18,6 +18,7 @@ const CRUMB_MAP = {
   '/manager/dashboard': ['Yönetici Portalı', 'Genel Bakış'],
   '/manager/sla': ['Yönetici Portalı', 'SLA İzleme'],
   '/manager/team': ['Yönetici Portalı', 'Ekip'],
+  '/settings': ['Ayarlar', 'Hesap Ayarları'],
 };
 
 function buildCrumbs(pathname) {

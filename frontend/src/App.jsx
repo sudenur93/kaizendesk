@@ -12,6 +12,7 @@ import ManagerSLAPage from './pages/ManagerSLAPage';
 import ManagerTeamPage from './pages/ManagerTeamPage';
 import ManagerApprovalsPage from './pages/ManagerApprovalsPage';
 import PortalShell from './components/PortalShell';
+import AccountSettingsPage from './pages/AccountSettingsPage';
 import { getRole, isLoggedIn } from './services/api';
 
 function ProtectedRoute({ children, allowedRoles }) {
@@ -113,6 +114,14 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={['MANAGER']}>
                 <ManagerApprovalsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute allowedRoles={['CUSTOMER', 'AGENT', 'MANAGER']}>
+                <AccountSettingsPage />
               </ProtectedRoute>
             }
           />

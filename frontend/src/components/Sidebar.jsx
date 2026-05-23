@@ -87,6 +87,14 @@ export default function Sidebar({ role, user, counts = {}, onLogout }) {
       </div>
 
       <div className="sb-foot">
+        <Link
+          to="/settings"
+          className={'sb-item' + (loc.pathname === '/settings' ? ' active' : '')}
+          style={{ marginTop: 'auto' }}
+        >
+          <span className="ic"><Ic.Settings /></span>
+          <span>Hesap Ayarları</span>
+        </Link>
         <div className="user-card" role="button" onClick={handleLogout} title="Çıkış yap">
           <Avatar initials={initials} />
           <div className="who">

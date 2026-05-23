@@ -285,4 +285,45 @@ export async function addWorklog(ticketId, { timeSpent, workDate, note }) {
   return res.data;
 }
 
+export async function updateUserProfile(firstName, lastName, email) {
+  const adminToken = await getAdminToken();
+  const headers = { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' };
+
+  const username = getUsername();
+  const userListRes = await axios.get(
+    `${KEYCLOAK_ADMIN_USERS}?username=${encodeURIComponent(username)}&exact=true`,
+    { headers }
+  );
+  const user = Array.isArray(userListRes.data) ? userListRes.data[0] : null;
+  if (!user?.id) throw new Error('Kullanıcı bulunamadı.');
+
+  await axios.put(
+    `${KEYCLOAK_ADMIN_USERS}/${user.id}`,
+    { firstName, lastName, email },
+    { headers }
+  );
+
+  const storage = localStorage.getItem('rememberMe') === '1' ? localStorage : sessionStorage;
+  storage.setItem('name', `${firstName} ${lastName}`.trim());
+}
+
+export async function changePassword(newPassword) {
+  const adminToken = await getAdminToken();
+  const headers = { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' };
+
+  const username = getUsername();
+  const userListRes = await axios.get(
+    `${KEYCLOAK_ADMIN_USERS}?username=${encodeURIComponent(username)}&exact=true`,
+    { headers }
+  );
+  const user = Array.isArray(userListRes.data) ? userListRes.data[0] : null;
+  if (!user?.id) throw new Error('Kullanıcı bulunamadı.');
+
+  await axios.put(
+    `${KEYCLOAK_ADMIN_USERS}/${user.id}/reset-password`,
+    { type: 'password', value: newPassword, temporary: false },
+    { headers }
+  );
+}
+
 export default api;

@@ -25,6 +25,7 @@ public class TicketNotificationService {
     public static final String TYPE_TICKET_ASSIGNED = "TICKET_ASSIGNED";
     public static final String TYPE_SLA_AT_RISK = "SLA_AT_RISK";
     public static final String TYPE_SLA_BREACHED = "SLA_BREACHED";
+    public static final String TYPE_CUSTOMER_COMMENT = "CUSTOMER_COMMENT";
 
     private final NotificationRepository notificationRepository;
     private final EmailService emailService;
@@ -35,6 +36,23 @@ public class TicketNotificationService {
     ) {
         this.notificationRepository = notificationRepository;
         this.emailService = emailService;
+    }
+
+    @Transactional
+    public void onCustomerCommented(Ticket ticket, User commentAuthor) {
+        String no = "#" + ticket.getId();
+        String body = no + " numaralı talebe müşteri yanıt verdi: " + commentAuthor.getName();
+        // assigned agent'a bildir
+        if (ticket.getAssignedAgent() != null) {
+            persist(ticket.getAssignedAgent(), ticket, TYPE_CUSTOMER_COMMENT,
+                    "Müşteri yanıtı", body);
+        }
+        // atanmamışsa tüm distinct alıcılara (creator hariç)
+        if (ticket.getAssignedAgent() == null && ticket.getCreatedBy() != null
+                && !ticket.getCreatedBy().equals(commentAuthor)) {
+            persist(ticket.getCreatedBy(), ticket, TYPE_CUSTOMER_COMMENT,
+                    "Müşteri yanıtı", body);
+        }
     }
 
     @Transactional

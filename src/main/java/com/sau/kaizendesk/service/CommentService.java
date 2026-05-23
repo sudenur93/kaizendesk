@@ -20,17 +20,20 @@ public class CommentService {
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
     private final TicketAccessService ticketAccessService;
+    private final TicketNotificationService ticketNotificationService;
 
     public CommentService(
             CommentRepository commentRepository,
             TicketRepository ticketRepository,
             UserRepository userRepository,
-            TicketAccessService ticketAccessService
+            TicketAccessService ticketAccessService,
+            TicketNotificationService ticketNotificationService
     ) {
         this.commentRepository = commentRepository;
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
         this.ticketAccessService = ticketAccessService;
+        this.ticketNotificationService = ticketNotificationService;
     }
 
     @Transactional
@@ -58,6 +61,16 @@ public class CommentService {
         comment.setType(request.isInternal() ? "INTERNAL" : "EXTERNAL");
 
         Comment savedComment = commentRepository.save(comment);
+
+        // Müşteri external yorum yaptıysa agent'a bildir
+        if (isCustomer && !request.isInternal()) {
+            try {
+                ticketNotificationService.onCustomerCommented(ticket, author);
+            } catch (Exception ex) {
+                // bildirim hatası yorum kaydını engellemesin
+            }
+        }
+
         return mapToResponse(savedComment);
     }
 
