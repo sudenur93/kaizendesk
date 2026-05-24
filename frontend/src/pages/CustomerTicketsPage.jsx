@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import Ic from '../components/Icons';
 import {
+  EmptyState,
   PriorityBadge,
   SlaBar,
   SkeletonTable,
@@ -9,6 +10,7 @@ import {
   StatusBadge,
   fmtDate,
 } from '../components/Common';
+import AiChatWidget from '../components/AiChatWidget';
 import { getProducts, getTickets } from '../services/api';
 
 const STATUS_TABS = [
@@ -206,8 +208,12 @@ export default function CustomerTicketsPage() {
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="muted" style={{ padding: '40px', textAlign: 'center' }}>
-                    Bu filtreye uygun talep bulunamadı.
+                  <td colSpan="6">
+                    <EmptyState
+                      type={tickets.length === 0 ? 'tickets' : 'search'}
+                      title={tickets.length === 0 ? 'Henüz talebiniz yok' : 'Talep bulunamadı'}
+                      sub={tickets.length === 0 ? 'İlk destek talebinizi oluşturmak için "Yeni Talep" butonuna tıklayın.' : 'Seçili filtrelerle eşleşen talep yok.'}
+                    />
                   </td>
                 </tr>
               ) : (
@@ -248,6 +254,7 @@ export default function CustomerTicketsPage() {
           </span>
         </div>
       </div>
+      <AiChatWidget tickets={tickets} />
     </div>
   );
 }

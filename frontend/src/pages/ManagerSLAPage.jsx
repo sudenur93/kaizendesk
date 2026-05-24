@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import Ic from '../components/Icons';
-import { Avatar, PriorityBadge, SlaBar, StatusBadge, getInitials, slaInfo } from '../components/Common';
-import { getTickets } from '../services/api';
+import { Avatar, EmptyState, PriorityBadge, SlaBar, StatusBadge, getInitials, slaInfo } from '../components/Common';
+import { analyzeSla, getTickets } from '../services/api';
 
 export default function ManagerSLAPage() {
   const navigate = useNavigate();
@@ -10,7 +10,9 @@ export default function ManagerSLAPage() {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filterMode, setFilterMode] = useState('all'); // all | breached | atrisk
+  const [filterMode, setFilterMode] = useState('all');
+  const [aiAnalysis, setAiAnalysis] = useState('');
+  const [aiAnalyzing, setAiAnalyzing] = useState(false); // all | breached | atrisk
 
   useEffect(() => {
     let cancelled = false;
@@ -61,11 +63,51 @@ export default function ManagerSLAPage() {
           <div className="page-sub">{filtered.length} talep risk altında veya hedefini aştı</div>
         </div>
         <div className="row" style={{ gap: 8 }}>
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={aiAnalyzing || tickets.length === 0}
+            onClick={async () => {
+              setAiAnalyzing(true);
+              setAiAnalysis('');
+              try {
+                const stats = {
+                  toplamAcik: tickets.filter(t => !['RESOLVED','CLOSED'].includes(t.status)).length,
+                  slaIhlali: tickets.filter(t => t.slaBreached).length,
+                  riskAltinda: tickets.filter(t => t.slaAtRisk && !t.slaBreached).length,
+                  kritikTicketlar: tickets
+                    .filter(t => t.slaBreached || t.slaAtRisk)
+                    .slice(0, 5)
+                    .map(t => ({ baslik: t.title, oncelik: t.priority, durum: t.status })),
+                };
+                const text = await analyzeSla(stats);
+                setAiAnalysis(text);
+              } catch {
+                setAiAnalysis('Analiz oluşturulamadı.');
+              } finally {
+                setAiAnalyzing(false);
+              }
+            }}
+          >
+            {aiAnalyzing ? '…' : '✦ AI Risk Analizi'}
+          </button>
           <button type="button" className="btn btn-sm btn-ghost" onClick={() => navigate('/manager/dashboard')}>
             ← Panele dön
           </button>
         </div>
       </div>
+
+      {aiAnalysis && (
+        <div className="card" style={{ marginBottom: 18, borderLeft: '3px solid var(--accent)', background: 'var(--bg-soft)' }}>
+          <div className="card-head" style={{ paddingBottom: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>✦ AI SLA Risk Analizi</span>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAiAnalysis('')}>✕</button>
+          </div>
+          <div style={{ padding: '0 20px 16px', fontSize: 13.5, lineHeight: 1.6, color: 'var(--text-2)' }}>
+            {aiAnalysis}
+          </div>
+        </div>
+      )}
 
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 18 }}>
@@ -119,10 +161,12 @@ export default function ManagerSLAPage() {
             {loading ? (
               <tr><td colSpan="6" className="muted" style={{ padding: 40, textAlign: 'center' }}>Yükleniyor…</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan="6" style={{ padding: '40px', textAlign: 'center' }}>
-                <div className="row" style={{ justifyContent: 'center', gap: 8, color: 'var(--ok)', fontSize: 13 }}>
-                  <Ic.Check size={14} /> Bu filtreye uygun talep yok
-                </div>
+              <tr><td colSpan="6">
+                <EmptyState
+                  type="sla"
+                  title="SLA ihlali yok"
+                  sub="Tüm talepler SLA süresi içinde. Harika iş!"
+                />
               </td></tr>
             ) : (
               filtered.map((t) => (

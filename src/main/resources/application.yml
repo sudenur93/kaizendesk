@@ -40,6 +40,9 @@ spring:
       mail.smtp.starttls.enable: ${SMTP_STARTTLS:true}
       mail.smtp.starttls.required: ${SMTP_STARTTLS:true}
 
+groq:
+  api-key: ${GROQ_API_KEY:}
+
 kaizendesk:
   attachments:
     directory: ${KAIZENDESK_ATTACHMENTS_DIR:./data/attachments}

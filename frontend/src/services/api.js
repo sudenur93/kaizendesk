@@ -326,4 +326,39 @@ export async function changePassword(newPassword) {
   );
 }
 
+export async function suggestPriority(title, description) {
+  const res = await api.post('/ai/suggest-priority', { title, description });
+  return res.data.text;
+}
+
+export async function suggestReply(ticketId) {
+  const res = await api.post(`/ai/suggest-reply/${ticketId}`);
+  return res.data.text;
+}
+
+export async function analyzeDashboard(stats) {
+  const res = await api.post('/ai/analyze-dashboard', { stats: JSON.stringify(stats) });
+  return res.data.text;
+}
+
+export async function analyzeTeam(stats) {
+  const res = await api.post('/ai/analyze-team', { stats: JSON.stringify(stats) });
+  return res.data.text;
+}
+
+export async function analyzeSla(stats) {
+  const res = await api.post('/ai/analyze-sla', { stats: JSON.stringify(stats) });
+  return res.data.text;
+}
+
+export async function summarizeTicket(ticketId) {
+  const res = await api.post(`/ai/summarize/${ticketId}`);
+  return res.data.text;
+}
+
+export async function aiChat(message, context = '') {
+  const res = await api.post('/ai/chat', { message, context });
+  return res.data.text;
+}
+
 export default api;

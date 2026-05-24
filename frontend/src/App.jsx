@@ -1,4 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { getRole, isLoggedIn } from './services/api';
+import PortalShell from './components/PortalShell';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
@@ -11,9 +13,7 @@ import ManagerDashboardPage from './pages/ManagerDashboardPage';
 import ManagerSLAPage from './pages/ManagerSLAPage';
 import ManagerTeamPage from './pages/ManagerTeamPage';
 import ManagerApprovalsPage from './pages/ManagerApprovalsPage';
-import PortalShell from './components/PortalShell';
 import AccountSettingsPage from './pages/AccountSettingsPage';
-import { getRole, isLoggedIn } from './services/api';
 
 function ProtectedRoute({ children, allowedRoles }) {
   if (!isLoggedIn()) return <Navigate to="/login" replace />;

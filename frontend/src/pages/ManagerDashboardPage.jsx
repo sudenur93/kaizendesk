@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import Ic from '../components/Icons';
 import { Avatar, PriorityBadge, SlaBar, StatusBadge, Skeleton, SkeletonCard, SkeletonTable, fmtDate, getInitials, slaInfo } from '../components/Common';
-import { getDashboardSummary, getTickets } from '../services/api';
+import { analyzeDashboard, getDashboardSummary, getTickets } from '../services/api';
 
 /* ── ComplianceRing (SVG, sade) ── */
 function ComplianceRing({ pct, size = 130, thickness = 11 }) {
@@ -121,6 +121,8 @@ export default function ManagerDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [rangeDays, setRangeDays] = useState('30');
+  const [aiAnalysis, setAiAnalysis] = useState('');
+  const [aiAnalyzing, setAiAnalyzing] = useState(false);
 
   const { from, to } = useMemo(() => {
     const t = new Date();
@@ -217,8 +219,45 @@ export default function ManagerDashboardPage() {
           <button type="button" className="btn btn-sm btn-ghost" onClick={() => setRangeDays(rangeDays)}>
             <Ic.Refresh size={13} /> Yenile
           </button>
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={aiAnalyzing || !data}
+            onClick={async () => {
+              setAiAnalyzing(true);
+              setAiAnalysis('');
+              try {
+                const stats = {
+                  slaUyumu: slaRate,
+                  toplamTicket: data.totalTickets,
+                  durumDagilimi: data.statusCounts,
+                  ajanPerformans: data.agentPerformances?.slice(0, 5),
+                };
+                const text = await analyzeDashboard(stats);
+                setAiAnalysis(text);
+              } catch {
+                setAiAnalysis('Analiz oluşturulamadı.');
+              } finally {
+                setAiAnalyzing(false);
+              }
+            }}
+          >
+            {aiAnalyzing ? '…' : '✦ AI Analiz'}
+          </button>
         </div>
       </div>
+
+      {aiAnalysis && (
+        <div className="card" style={{ marginBottom: 18, borderLeft: '3px solid var(--accent)', background: 'var(--bg-soft)' }}>
+          <div className="card-head" style={{ paddingBottom: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>✦ AI Dashboard Analizi</span>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAiAnalysis('')}>✕</button>
+          </div>
+          <div style={{ padding: '0 20px 16px', fontSize: 13.5, lineHeight: 1.6, color: 'var(--text-2)' }}>
+            {aiAnalysis}
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="badge p-high" style={{ display: 'flex', padding: '10px 14px', marginBottom: 14, gap: 8 }}>

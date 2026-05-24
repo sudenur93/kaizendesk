@@ -17,6 +17,8 @@ import {
   getTicketAttachments,
   getTicketComments,
   getWorklogs,
+  summarizeTicket,
+  suggestReply,
   updateTicketStatus,
   uploadTicketAttachment,
 } from '../services/api';
@@ -84,6 +86,9 @@ export default function AgentTicketDetailPage() {
   const isManager = getRole() === 'MANAGER';
   const [agents, setAgents] = useState([]);
   const [reassigning, setReassigning] = useState(false);
+  const [aiSummary, setAiSummary] = useState('');
+  const [aiSummarizing, setAiSummarizing] = useState(false);
+  const [aiReplySuggesting, setAiReplySuggesting] = useState(false);
 
   useEffect(() => {
     if (!isManager) return;
@@ -262,6 +267,19 @@ export default function AgentTicketDetailPage() {
     }
   }
 
+  async function handleSummarize() {
+    setAiSummarizing(true);
+    setAiSummary('');
+    try {
+      const text = await summarizeTicket(ticket.id);
+      setAiSummary(text);
+    } catch {
+      setAiSummary('Özet oluşturulamadı. Lütfen tekrar deneyin.');
+    } finally {
+      setAiSummarizing(false);
+    }
+  }
+
   async function handleFileUpload(e) {
     const file = e.target.files?.[0];
     if (!file || !ticket?.id) return;
@@ -345,6 +363,15 @@ export default function AgentTicketDetailPage() {
               <div className="row" style={{ gap: 8, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 <button
                   type="button"
+                  className="btn btn-sm"
+                  onClick={handleSummarize}
+                  disabled={aiSummarizing}
+                  title="AI ile özetle"
+                >
+                  ✦ {aiSummarizing ? 'Özetleniyor…' : 'Özetle'}
+                </button>
+                <button
+                  type="button"
                   className={`btn btn-sm${showWorklog ? ' btn-accent' : ''}`}
                   onClick={() => setShowWorklog((v) => !v)}
                 >
@@ -369,6 +396,23 @@ export default function AgentTicketDetailPage() {
                 ))}
               </div>
             </div>
+
+            {/* ── AI Özeti ── */}
+            {(aiSummary || aiSummarizing) && (
+              <div className="card" style={{ marginBottom: 18, borderLeft: '3px solid var(--accent)', background: 'var(--bg-soft)' }}>
+                <div className="card-head" style={{ paddingBottom: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>✦ AI Özeti</span>
+                  {!aiSummarizing && (
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAiSummary('')}>
+                      <Ic.X size={13} />
+                    </button>
+                  )}
+                </div>
+                <div style={{ padding: '0 20px 16px', fontSize: 13.5, lineHeight: 1.6, color: 'var(--text-2)' }}>
+                  {aiSummarizing ? 'Claude AI özet oluşturuyor…' : aiSummary}
+                </div>
+              </div>
+            )}
 
             {/* ── Worklog panel (toggle) ── */}
             {showWorklog && (
@@ -528,12 +572,32 @@ export default function AgentTicketDetailPage() {
                       />
                       <div className="composer-foot">
                         <span className="muted mono" style={{ fontSize: 11, paddingLeft: 4 }}>{commentText.length} / 1000</span>
-                        <button type="submit"
-                          className={`btn btn-sm ${noteMode === NOTE_INTERNAL ? 'btn-warn' : ''} ${commentText.trim() && noteMode === NOTE_EXTERNAL ? 'btn-accent' : ''}`}
-                          disabled={working || !commentText.trim()}>
-                          <Ic.Send size={13} />
-                          {working ? 'Gönderiliyor…' : noteMode === NOTE_INTERNAL ? 'Not Ekle' : 'Gönder'}
-                        </button>
+                        <div className="row" style={{ gap: 8 }}>
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            disabled={working || aiReplySuggesting}
+                            onClick={async () => {
+                              setAiReplySuggesting(true);
+                              try {
+                                const suggested = await suggestReply(ticket.id);
+                                setCommentText(suggested);
+                              } catch {
+                                if (pushToast) pushToast('Yanıt önerisi oluşturulamadı.');
+                              } finally {
+                                setAiReplySuggesting(false);
+                              }
+                            }}
+                          >
+                            {aiReplySuggesting ? '…' : '✦ Yanıt Öner'}
+                          </button>
+                          <button type="submit"
+                            className={`btn btn-sm ${noteMode === NOTE_INTERNAL ? 'btn-warn' : ''} ${commentText.trim() && noteMode === NOTE_EXTERNAL ? 'btn-accent' : ''}`}
+                            disabled={working || !commentText.trim()}>
+                            <Ic.Send size={13} />
+                            {working ? 'Gönderiliyor…' : noteMode === NOTE_INTERNAL ? 'Not Ekle' : 'Gönder'}
+                          </button>
+                        </div>
                       </div>
                     </form>
                   </div>
@@ -638,23 +702,6 @@ export default function AgentTicketDetailPage() {
                   </dl>
                 </div>
 
-                {/* SLA */}
-                <div className="card card-pad">
-                  <div className="row" style={{ marginBottom: 12 }}>
-                    <span className="muted" style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase' }}>SLA</span>
-                    <span className="spacer" />
-                    <span className="mono muted" style={{ fontSize: 11 }}>{ticket.slaTargetAt ? `${Math.round(Math.abs(new Date(ticket.slaTargetAt) - new Date(ticket.createdAt || ticket.slaTargetAt)) / 3600000)}sa hedef` : ''}</span>
-                  </div>
-                  <SlaBar ticket={ticket} />
-                  <div className="muted" style={{ marginTop: 10, fontSize: 12 }}>
-                    {ticket.slaBreached
-                      ? 'SLA hedefi aşıldı. Eskalasyon önerilir.'
-                      : ticket.slaAtRisk
-                        ? 'SLA hedefi riski var.'
-                        : 'SLA hedefi içinde.'}
-                  </div>
-                </div>
-
                 {/* Aktivite */}
                 {activities.length > 0 && (
                   <div className="card card-pad">
@@ -674,6 +721,24 @@ export default function AgentTicketDetailPage() {
                     </div>
                   </div>
                 )}
+
+                {/* SLA */}
+                <div className="card card-pad">
+                  <div className="row" style={{ marginBottom: 12 }}>
+                    <span className="muted" style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase' }}>SLA</span>
+                    <span className="spacer" />
+                    <span className="mono muted" style={{ fontSize: 11 }}>{ticket.slaTargetAt ? `${Math.round(Math.abs(new Date(ticket.slaTargetAt) - new Date(ticket.createdAt || ticket.slaTargetAt)) / 3600000)}sa hedef` : ''}</span>
+                  </div>
+                  <SlaBar ticket={ticket} />
+                  <div className="muted" style={{ marginTop: 10, fontSize: 12 }}>
+                    {ticket.slaBreached
+                      ? 'SLA hedefi aşıldı. Eskalasyon önerilir.'
+                      : ticket.slaAtRisk
+                        ? 'SLA hedefi riski var.'
+                        : 'SLA hedefi içinde.'}
+                  </div>
+                </div>
+
               </div>
             </div>
           </>

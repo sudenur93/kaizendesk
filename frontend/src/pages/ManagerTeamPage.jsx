@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import Ic from '../components/Icons';
-import { Avatar, PriorityBadge, SlaBar, StatusBadge, fmtDate, getInitials, slaInfo } from '../components/Common';
-import { getAgents, getTickets } from '../services/api';
+import { Avatar, EmptyState, PriorityBadge, SlaBar, StatusBadge, fmtDate, getInitials, slaInfo } from '../components/Common';
+import { analyzeTeam, getAgents, getTickets } from '../services/api';
 
 export default function ManagerTeamPage() {
   const navigate = useNavigate();
@@ -11,6 +11,8 @@ export default function ManagerTeamPage() {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [aiAnalysis, setAiAnalysis] = useState('');
+  const [aiAnalyzing, setAiAnalyzing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,11 +69,48 @@ export default function ManagerTeamPage() {
           <div className="page-sub">{agents.length} destek uzmanı · {totalOpen} açık talep</div>
         </div>
         <div className="row" style={{ gap: 8 }}>
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={aiAnalyzing || agents.length === 0}
+            onClick={async () => {
+              setAiAnalyzing(true);
+              setAiAnalysis('');
+              try {
+                const stats = agents.map(a => ({
+                  isim: a.name,
+                  acikTicket: tickets.filter(t => t.assignedAgentId === a.id && !['RESOLVED','CLOSED'].includes(t.status)).length,
+                  toplamTicket: tickets.filter(t => t.assignedAgentId === a.id).length,
+                  cozulen: tickets.filter(t => t.assignedAgentId === a.id && ['RESOLVED','CLOSED'].includes(t.status)).length,
+                }));
+                const text = await analyzeTeam(stats);
+                setAiAnalysis(text);
+              } catch {
+                setAiAnalysis('Analiz oluşturulamadı.');
+              } finally {
+                setAiAnalyzing(false);
+              }
+            }}
+          >
+            {aiAnalyzing ? '…' : '✦ AI Analiz'}
+          </button>
           <button type="button" className="btn btn-sm btn-ghost" onClick={() => navigate('/manager/dashboard')}>
             ← Panele dön
           </button>
         </div>
       </div>
+
+      {aiAnalysis && (
+        <div className="card" style={{ marginBottom: 18, borderLeft: '3px solid var(--accent)', background: 'var(--bg-soft)' }}>
+          <div className="card-head" style={{ paddingBottom: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>✦ AI Ekip Analizi</span>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAiAnalysis('')}>✕</button>
+          </div>
+          <div style={{ padding: '0 20px 16px', fontSize: 13.5, lineHeight: 1.6, color: 'var(--text-2)' }}>
+            {aiAnalysis}
+          </div>
+        </div>
+      )}
 
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 18 }}>
@@ -112,7 +151,9 @@ export default function ManagerTeamPage() {
             {loading ? (
               <tr><td colSpan="7" className="muted" style={{ padding: 40, textAlign: 'center' }}>Yükleniyor…</td></tr>
             ) : agentStats.length === 0 ? (
-              <tr><td colSpan="7" className="muted" style={{ padding: 40, textAlign: 'center' }}>Henüz destek uzmanı yok.</td></tr>
+              <tr><td colSpan="7">
+                <EmptyState type="team" title="Henüz destek uzmanı yok" sub="Onaylanan destek uzmanları burada görünecek." />
+              </td></tr>
             ) : (
               agentStats.map(({ agent, open, resolved, breached, atRisk, inProgress }) => (
                 <tr key={agent.id}>

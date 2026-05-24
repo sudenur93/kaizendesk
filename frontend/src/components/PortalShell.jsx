@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
@@ -34,9 +34,37 @@ function buildCrumbs(pathname) {
 
 function readStoredTheme() {
   try {
-    return localStorage.getItem('theme') || 'light';
+    const stored = localStorage.getItem('theme');
+    if (stored) return stored;
+    // Sistem tercihini algıla
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   } catch {
     return 'light';
+  }
+}
+
+function playNotificationSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(520, ctx.currentTime);
+    osc.frequency.setValueAtTime(660, ctx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.4);
+  } catch {
+    // ses desteklenmiyorsa sessizce geç
+  }
+}
+
+function showBrowserNotification(title, body) {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'granted') {
+    new Notification(title, { body, icon: '/favicon.ico' });
   }
 }
 
@@ -49,6 +77,19 @@ export default function PortalShell() {
   const [search, setSearch] = useState('');
   const [theme, setTheme] = useState(readStoredTheme);
   const [pushToast, toastsNode] = useToasts();
+  const prevNotifCount = useRef(null);
+
+  // Sistem tema tercihi değişirse güncelle
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e) => {
+      if (!localStorage.getItem('theme')) {
+        setTheme(e.matches ? 'dark' : 'light');
+      }
+    };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -58,6 +99,13 @@ export default function PortalShell() {
       // ignore
     }
   }, [theme]);
+
+  // Bildirim izni iste
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,7 +123,18 @@ export default function PortalShell() {
     let cancelled = false;
     function load() {
       getNotifications()
-        .then((data) => { if (!cancelled) setNotifications(data); })
+        .then((data) => {
+          if (!cancelled) {
+            // Yeni bildirim var mı kontrol et
+            if (prevNotifCount.current !== null && data.length > prevNotifCount.current) {
+              const newCount = data.length - prevNotifCount.current;
+              playNotificationSound();
+              showBrowserNotification('KaizenDesk', `${newCount} yeni bildiriminiz var`);
+            }
+            prevNotifCount.current = data.length;
+            setNotifications(data);
+          }
+        })
         .catch(() => {});
     }
     load();

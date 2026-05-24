@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import Ic from '../components/Icons';
-import { PriorityBadge, SlaBar, SkeletonTable, StatusBadge, fmtDate, slaInfo } from '../components/Common';
+import { EmptyState, PriorityBadge, SlaBar, SkeletonTable, StatusBadge, fmtDate, slaInfo } from '../components/Common';
 import {
   assignTicket,
   getCurrentUserProfile,
@@ -372,9 +372,11 @@ export default function AgentTicketsPage() {
                       </div>
                       <div className="kcol-body">
                         {colTickets.length === 0 ? (
-                          <div className="muted" style={{ fontSize: 12, textAlign: 'center', padding: 16 }}>
-                            Ticket yok
-                          </div>
+                          <EmptyState
+                            type="tickets"
+                            title="Talep yok"
+                            sub="Bu sütunda henüz talep bulunmuyor."
+                          />
                         ) : (
                           colTickets.map((ticket) => {
                             const transitions = STATUS_TRANSITIONS[ticket.status] || [];
@@ -449,8 +451,12 @@ export default function AgentTicketsPage() {
                   </tr>
                 ) : visibleTickets.length === 0 ? (
                   <tr>
-                    <td colSpan={ownerScope === 'unassigned' ? 7 : ownerScope === 'all' || ownerScope === 'others' ? 7 : 6} className="muted" style={{ padding: 40, textAlign: 'center' }}>
-                      Bu sekmede görüntülenecek talep yok.
+                    <td colSpan={ownerScope === 'unassigned' ? 7 : 7}>
+                      <EmptyState
+                        type="search"
+                        title="Talep bulunamadı"
+                        sub="Seçili filtrelerle eşleşen talep yok. Filtreleri değiştirmeyi deneyin."
+                      />
                     </td>
                   </tr>
                 ) : (

@@ -182,6 +182,7 @@ services:
       SMTP_FROM: ${SMTP_FROM:-no-reply@kaizendesk.local}
       SMTP_AUTH: ${SMTP_AUTH:-true}
       SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
       MANAGEMENT_HEALTH_MAIL_ENABLED: ${MANAGEMENT_HEALTH_MAIL_ENABLED:-true}
     volumes:
       - app_logs:/var/log/kaizendesk

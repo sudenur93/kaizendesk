@@ -6,6 +6,7 @@ import {
   getCategories,
   getIssueTypes,
   getProducts,
+  suggestPriority,
   uploadTicketAttachment,
 } from '../services/api';
 
@@ -47,6 +48,7 @@ export default function CustomerNewTicketPage() {
   const [loadingMeta, setLoadingMeta] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [aiSuggestingPriority, setAiSuggestingPriority] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -407,7 +409,7 @@ export default function CustomerNewTicketPage() {
               <label className="field-label">
                 Öncelik<span className="req">*</span>
               </label>
-              <div className="row" style={{ gap: 8 }}>
+              <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
                 {PRIORITIES.map((p) => (
                   <button
                     type="button"
@@ -419,6 +421,26 @@ export default function CustomerNewTicketPage() {
                     {p.label}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  style={{ marginLeft: 4 }}
+                  disabled={submitting || aiSuggestingPriority}
+                  onClick={async () => {
+                    setAiSuggestingPriority(true);
+                    try {
+                      const suggested = await suggestPriority(title.trim(), desc.trim());
+                      setPriority(suggested);
+                    } catch {
+                      // sessizce geç
+                    } finally {
+                      setAiSuggestingPriority(false);
+                    }
+                  }}
+                  title="Başlık ve açıklama doldurulunca AI öncelik önerir"
+                >
+                  {aiSuggestingPriority ? '…' : '✦ AI Öner'}
+                </button>
               </div>
               <div className="field-hint">
                 Yüksek öncelik daha kısa SLA hedef süresine alınır.

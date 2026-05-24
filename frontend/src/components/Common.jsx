@@ -148,6 +148,64 @@ export function SkeletonTable({ rows = 5, cols = 4 }) {
   );
 }
 
+/* ── Empty State ── */
+const EMPTY_ILLUSTRATIONS = {
+  tickets: (
+    <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+      <rect x="12" y="18" width="56" height="44" rx="6" fill="var(--bg-soft)" stroke="var(--hairline)" strokeWidth="1.5"/>
+      <rect x="20" y="30" width="24" height="3" rx="1.5" fill="var(--text-4)"/>
+      <rect x="20" y="38" width="40" height="3" rx="1.5" fill="var(--text-4)"/>
+      <rect x="20" y="46" width="32" height="3" rx="1.5" fill="var(--text-4)"/>
+      <rect x="28" y="10" width="24" height="8" rx="4" fill="var(--bg-soft)" stroke="var(--hairline)" strokeWidth="1.5"/>
+      <circle cx="40" cy="14" r="2" fill="var(--text-4)"/>
+    </svg>
+  ),
+  search: (
+    <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+      <circle cx="36" cy="36" r="18" fill="var(--bg-soft)" stroke="var(--hairline)" strokeWidth="1.5"/>
+      <line x1="49" y1="49" x2="64" y2="64" stroke="var(--hairline)" strokeWidth="3" strokeLinecap="round"/>
+      <line x1="30" y1="30" x2="42" y2="42" stroke="var(--text-4)" strokeWidth="2" strokeLinecap="round"/>
+      <line x1="42" y1="30" x2="30" y2="42" stroke="var(--text-4)" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  ),
+  done: (
+    <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+      <circle cx="40" cy="40" r="26" fill="var(--bg-soft)" stroke="var(--hairline)" strokeWidth="1.5"/>
+      <path d="M28 40l8 8 16-16" stroke="var(--ok)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  team: (
+    <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+      <circle cx="40" cy="28" r="12" fill="var(--bg-soft)" stroke="var(--hairline)" strokeWidth="1.5"/>
+      <path d="M16 62c0-13.255 10.745-24 24-24s24 10.745 24 24" stroke="var(--hairline)" strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="62" cy="24" r="8" fill="var(--bg-soft)" stroke="var(--hairline)" strokeWidth="1.5"/>
+      <circle cx="18" cy="24" r="8" fill="var(--bg-soft)" stroke="var(--hairline)" strokeWidth="1.5"/>
+    </svg>
+  ),
+  sla: (
+    <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+      <circle cx="40" cy="40" r="26" fill="var(--bg-soft)" stroke="var(--hairline)" strokeWidth="1.5"/>
+      <path d="M40 26v14l8 8" stroke="var(--ok)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+};
+
+export function EmptyState({ type = 'tickets', title, sub, action }) {
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      justifyContent: 'center', padding: '48px 24px', gap: 12, textAlign: 'center',
+    }}>
+      {EMPTY_ILLUSTRATIONS[type]}
+      <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-2)', marginTop: 4 }}>
+        {title}
+      </div>
+      {sub && <div className="muted" style={{ fontSize: 13, maxWidth: 280, lineHeight: 1.5 }}>{sub}</div>}
+      {action && <div style={{ marginTop: 8 }}>{action}</div>}
+    </div>
+  );
+}
+
 export function useToasts() {
   const [list, setList] = useState([]);
   const push = useCallback((text) => {

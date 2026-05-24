@@ -75,12 +75,27 @@ public class DashboardService {
         resp.setProductCounts(productCounts);
 
         Instant now = Instant.now();
+        Instant rangeStartInst = from != null ? from.atStartOfDay().toInstant(ZoneOffset.UTC) : null;
+        Instant rangeEndInst   = to   != null ? to.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC) : null;
+
+        // Seçili aralıkta çözülen ticket'lara göre SLA uyumu
+        List<Ticket> doneInRange = all.stream()
+                .filter(t -> DONE_STATUSES.contains(t.getStatus()))
+                .filter(t -> {
+                    Instant completed = t.getResolvedAt() != null ? t.getResolvedAt() : t.getClosedAt();
+                    if (completed == null) return false;
+                    if (rangeStartInst != null && completed.isBefore(rangeStartInst)) return false;
+                    if (rangeEndInst   != null && !completed.isBefore(rangeEndInst))  return false;
+                    return true;
+                })
+                .toList();
+
         long slaBreached = all.stream().filter(t -> SlaEvaluator.isBreached(t, now)).count();
         resp.setSlaBreachedCount(slaBreached);
 
-        long doneTotal = all.stream().filter(t -> DONE_STATUSES.contains(t.getStatus())).count();
-        long doneAndNotBreached = all.stream()
-                .filter(t -> DONE_STATUSES.contains(t.getStatus()) && !SlaEvaluator.isBreached(t, now))
+        long doneTotal = doneInRange.size();
+        long doneAndNotBreached = doneInRange.stream()
+                .filter(t -> !SlaEvaluator.isBreached(t, now))
                 .count();
         resp.setSlaComplianceRate(doneTotal == 0 ? 100.0 : Math.round(doneAndNotBreached * 1000.0 / doneTotal) / 10.0);
 
