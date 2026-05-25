@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import Ic from '../components/Icons';
 import { Avatar, PriorityBadge, SlaBar, StatusBadge, Skeleton, SkeletonCard, SkeletonTable, fmtDate, getInitials, slaInfo } from '../components/Common';
-import { analyzeDashboard, getDashboardSummary, getTickets } from '../services/api';
+import { analyzeDashboard, getDashboardSummary, getRecentActivity, getTickets } from '../services/api';
 
 /* ── ComplianceRing (SVG, sade) ── */
 function ComplianceRing({ pct, size = 130, thickness = 11 }) {
@@ -79,6 +79,39 @@ const STATUS_COLOR = {
   CLOSED: '#9aa0a8',
 };
 
+const EVENT_LABEL = {
+  TICKET_CREATED: 'yeni talep oluşturdu',
+  STATUS_CHANGED: 'durumu değiştirdi',
+  AGENT_ASSIGNED: 'talebi atadı →',
+  COMMENT_ADDED: 'yorum ekledi',
+  INTERNAL_NOTE: 'dahili not ekledi',
+};
+
+const EVENT_COLOR = {
+  TICKET_CREATED: '#e8f5e9',
+  STATUS_CHANGED: '#fff8e1',
+  AGENT_ASSIGNED: '#e3f2fd',
+  COMMENT_ADDED: '#f3e5f5',
+  INTERNAL_NOTE: '#fce4ec',
+};
+
+const EVENT_ICON = {
+  TICKET_CREATED: <Ic.Plus size={14} style={{ color: '#2d8a4e' }} />,
+  STATUS_CHANGED: <Ic.Clock size={14} style={{ color: '#b76b00' }} />,
+  AGENT_ASSIGNED: <Ic.Users size={14} style={{ color: '#3563a6' }} />,
+  COMMENT_ADDED: <Ic.Bell size={14} style={{ color: '#7b3fa0' }} />,
+  INTERNAL_NOTE: <Ic.Bell size={14} style={{ color: '#c0394b' }} />,
+};
+
+function fmtRelative(isoStr) {
+  if (!isoStr) return '';
+  const diff = Math.floor((Date.now() - new Date(isoStr).getTime()) / 1000);
+  if (diff < 60) return 'az önce';
+  if (diff < 3600) return `${Math.floor(diff / 60)} dk önce`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} sa önce`;
+  return `${Math.floor(diff / 86400)} gün önce`;
+}
+
 const DATE_PRESETS = [
   { key: '7', label: 'Son 7 gün' },
   { key: '30', label: 'Son 30 gün' },
@@ -123,6 +156,7 @@ export default function ManagerDashboardPage() {
   const [rangeDays, setRangeDays] = useState('30');
   const [aiAnalysis, setAiAnalysis] = useState('');
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
+  const [activity, setActivity] = useState([]);
 
   const { from, to } = useMemo(() => {
     const t = new Date();
@@ -135,10 +169,11 @@ export default function ManagerDashboardPage() {
     let cancelled = false;
     setLoading(true);
     setError('');
-    Promise.all([getDashboardSummary(from, to), getTickets()])
-      .then(([summary, tickets]) => {
+    Promise.all([getDashboardSummary(from, to), getTickets(), getRecentActivity(5)])
+      .then(([summary, tickets, acts]) => {
         if (cancelled) return;
         setData(summary);
+        setActivity(acts);
         const urgent = tickets
           .filter((t) => (t.slaBreached || t.slaAtRisk) && !['RESOLVED', 'CLOSED'].includes(t.status))
           .sort((a, b) => {
@@ -191,7 +226,14 @@ export default function ManagerDashboardPage() {
       }));
   }, [data]);
 
-  const slaRate = data?.slaComplianceRate != null ? Math.round(data.slaComplianceRate) : null;
+  // Anlık SLA — tarih aralığından bağımsız, tüm açık ticketlardan hesapla
+  const liveOpenTickets = tickets.filter((t) => !['RESOLVED', 'CLOSED'].includes(t.status));
+  const liveBreached   = liveOpenTickets.filter((t) => t.slaBreached).length;
+  const liveInTarget   = liveOpenTickets.filter((t) => !t.slaBreached).length;
+  const liveSlaRate    = liveOpenTickets.length > 0
+    ? Math.round((liveInTarget / liveOpenTickets.length) * 100)
+    : 100;
+
   const openCount = (data?.statusCounts?.NEW || 0) + (data?.statusCounts?.IN_PROGRESS || 0) + (data?.statusCounts?.WAITING_FOR_CUSTOMER || 0);
 
   return (
@@ -373,7 +415,8 @@ export default function ManagerDashboardPage() {
                 </ResponsiveContainer>
                 <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 7 }}>
                   {pieData.map((d) => {
-                    const pct = openCount > 0 ? Math.round((d.value / openCount) * 100) : 0;
+                    const totalCount = pieData.reduce((s, x) => s + x.value, 0);
+                    const pct = totalCount > 0 ? Math.round((d.value / totalCount) * 100) : 0;
                     return (
                       <div key={d.name}>
                         <div className="row" style={{ gap: 6, marginBottom: 3 }}>
@@ -434,21 +477,21 @@ export default function ManagerDashboardPage() {
 
         <div className="card">
           <div className="card-head">
-            <div><h3>SLA Performansı</h3><div className="sub">Genel uyum oranı</div></div>
+            <div><h3>SLA Performansı</h3><div className="sub">Anlık durum · {liveOpenTickets.length} açık talep</div></div>
           </div>
           <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 20 }}>
             {loading ? <Skeleton width={130} height={130} style={{ borderRadius: '50%' }} /> : (
-              <ComplianceRing pct={slaRate ?? 0} />
+              <ComplianceRing pct={liveSlaRate} />
             )}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
               {loading ? <SkeletonCard rows={2} /> : [
-                { label: 'Hedefte', value: (data?.totalTickets || 0) - (data?.slaBreachedCount || 0), color: 'var(--ok)' },
-                { label: 'SLA İhlali', value: data?.slaBreachedCount, color: 'var(--err)' },
+                { label: 'Hedefte', value: liveInTarget, color: 'var(--ok)' },
+                { label: 'SLA İhlali', value: liveBreached, color: 'var(--err)' },
               ].map((r) => (
                 <div key={r.label} className="row" style={{ gap: 10 }}>
                   <div style={{ width: 6, height: 34, background: r.color, borderRadius: 2 }} />
                   <div>
-                    <div className="mono" style={{ fontSize: 17, fontWeight: 700, color: r.label === 'SLA İhlali' && (r.value || 0) > 0 ? r.color : 'var(--text)' }}>{r.value ?? '—'}</div>
+                    <div className="mono" style={{ fontSize: 17, fontWeight: 700, color: r.label === 'SLA İhlali' && (r.value || 0) > 0 ? r.color : 'var(--text)' }}>{r.value}</div>
                     <div className="muted" style={{ fontSize: 11 }}>{r.label}</div>
                   </div>
                 </div>
@@ -488,6 +531,42 @@ export default function ManagerDashboardPage() {
           )}
         </div>
       )}
+
+      {/* ── Row 4: En Son Etkinlikler ── */}
+      <div className="card">
+        <div className="card-head">
+          <div><h3>En Son Etkinlikler</h3><div className="sub">Son 5 sistem hareketi</div></div>
+        </div>
+        {loading ? (
+          <div style={{ padding: '12px 20px' }}><SkeletonTable rows={5} cols={3} /></div>
+        ) : activity.length === 0 ? (
+          <div style={{ padding: '24px 20px', color: 'var(--text-3)', fontSize: 13, textAlign: 'center' }}>Henüz etkinlik yok</div>
+        ) : (
+          <div style={{ padding: '4px 0 8px' }}>
+            {activity.map((a) => (
+              <div
+                key={a.id}
+                style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 20px', borderBottom: '1px solid var(--hairline)', cursor: a.ticketId ? 'pointer' : 'default' }}
+                onClick={() => a.ticketId && navigate(`/agent/tickets/${a.ticketId}`)}
+              >
+                <div style={{ width: 32, height: 32, borderRadius: '50%', background: EVENT_COLOR[a.eventType] || 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  {EVENT_ICON[a.eventType] || <Ic.Bell size={14} />}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, color: 'var(--text)' }}>
+                    <strong>{a.actor || '—'}</strong>
+                    {' '}{EVENT_LABEL[a.eventType] || a.eventType}
+                    {a.ticketNo && <span style={{ marginLeft: 6, color: 'var(--accent)', fontWeight: 600 }}>{a.ticketNo}</span>}
+                    {a.detail && <span style={{ color: 'var(--text-2)', marginLeft: 4 }}>· {a.detail}</span>}
+                  </div>
+                  {a.ticketTitle && <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.ticketTitle}</div>}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', flexShrink: 0, marginTop: 2 }}>{fmtRelative(a.createdAt)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

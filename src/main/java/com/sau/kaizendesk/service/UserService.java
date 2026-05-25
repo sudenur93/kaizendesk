@@ -66,6 +66,7 @@ public class UserService {
         response.setName(user.getName());
         response.setEmail(user.getEmail());
         response.setRole(user.getRole());
+        response.setTeam(user.getTeam());
         return response;
     }
 
@@ -79,9 +80,25 @@ public class UserService {
                     r.setName(u.getName());
                     r.setEmail(u.getEmail());
                     r.setRole(u.getRole());
+                    r.setTeam(u.getTeam());
                     return r;
                 })
                 .toList();
+    }
+
+    @Transactional
+    public UserResponse updateAgentTeam(Long agentId, String team) {
+        User user = userRepository.findById(agentId)
+                .orElseThrow(() -> new IllegalArgumentException("Kullanıcı bulunamadı: " + agentId));
+        user.setTeam(team == null || team.isBlank() ? null : team.trim());
+        user = userRepository.save(user);
+        UserResponse r = new UserResponse();
+        r.setId(user.getId());
+        r.setName(user.getName());
+        r.setEmail(user.getEmail());
+        r.setRole(user.getRole());
+        r.setTeam(user.getTeam());
+        return r;
     }
 
     private static String resolveFullName(Jwt jwt, String fallbackUsername) {

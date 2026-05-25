@@ -9,6 +9,7 @@ const NAVS = {
     items: [
       { id: 'c-list', to: '/customer/tickets', label: 'Taleplerim', icon: <Ic.Inbox /> },
       { id: 'c-new', to: '/customer/tickets/new', label: 'Yeni Talep', icon: <Ic.Plus /> },
+      { id: 'c-archive', to: '/archive', label: 'Arşiv', icon: <Ic.Archive /> },
     ],
   },
   AGENT: {
@@ -18,6 +19,8 @@ const NAVS = {
       { id: 'a-mine', to: '/agent/tickets?mine=1', label: 'Bana Atananlar', icon: <Ic.Inbox /> },
       { id: 'a-kanban', to: '/agent/tickets?view=kanban', label: 'Kanban', icon: <Ic.Kanban /> },
       { id: 'a-sla', to: '/agent/tickets?view=sla', label: 'SLA Riski', icon: <Ic.AlertTriangle /> },
+      { id: 'a-team', to: '/agent/team', label: 'Ekibim', icon: <Ic.Users /> },
+      { id: 'a-archive', to: '/archive', label: 'Arşiv', icon: <Ic.Archive /> },
     ],
   },
   MANAGER: {
@@ -30,6 +33,7 @@ const NAVS = {
       { id: 'm-sla', to: '/manager/sla', label: 'SLA İzleme', icon: <Ic.Clock /> },
       { id: 'm-team', to: '/manager/team', label: 'Ekip', icon: <Ic.Users /> },
       { id: 'm-approvals', to: '/manager/approvals', label: 'Onay Bekleyenler', icon: <Ic.AlertTriangle /> },
+      { id: 'm-archive', to: '/archive', label: 'Arşiv', icon: <Ic.Archive /> },
     ],
   },
 };

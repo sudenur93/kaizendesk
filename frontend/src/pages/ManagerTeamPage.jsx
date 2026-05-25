@@ -2,7 +2,17 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import Ic from '../components/Icons';
 import { Avatar, EmptyState, PriorityBadge, SlaBar, StatusBadge, fmtDate, getInitials, slaInfo } from '../components/Common';
-import { analyzeTeam, getAgents, getTickets } from '../services/api';
+import { analyzeTeam, getAgents, getTickets, updateAgentTeam } from '../services/api';
+
+const TEAMS = ['IT Destek', 'Bakım & Arıza', 'Üretim', 'Kalite Kontrol', 'Genel'];
+
+const TEAM_COLOR = {
+  'IT Destek':      { bg: '#e8f0fe', color: '#1a56db' },
+  'Bakım & Arıza':  { bg: '#fde8e8', color: '#c81e1e' },
+  'Üretim':         { bg: '#fef3c7', color: '#92400e' },
+  'Kalite Kontrol': { bg: '#d1fae5', color: '#065f46' },
+  'Genel':          { bg: '#f3f4f6', color: '#374151' },
+};
 
 export default function ManagerTeamPage() {
   const navigate = useNavigate();
@@ -13,6 +23,7 @@ export default function ManagerTeamPage() {
   const [error, setError] = useState('');
   const [aiAnalysis, setAiAnalysis] = useState('');
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
+  const [teamSaving, setTeamSaving] = useState(null); // agentId being saved
 
   useEffect(() => {
     let cancelled = false;
@@ -50,6 +61,18 @@ export default function ManagerTeamPage() {
       return { agent, open: open.length, resolved: resolved.length, breached: breached.length, atRisk: atRisk.length, inProgress: inProgress.length, tickets: mine };
     }).sort((a, b) => b.open - a.open);
   }, [agents, tickets, search]);
+
+  async function handleTeamChange(agentId, team) {
+    setTeamSaving(agentId);
+    try {
+      const updated = await updateAgentTeam(agentId, team);
+      setAgents((prev) => prev.map((a) => a.id === agentId ? { ...a, team: updated.team } : a));
+    } catch {
+      // sessiz hata
+    } finally {
+      setTeamSaving(null);
+    }
+  }
 
   const unassigned = useMemo(
     () => tickets.filter((t) => !t.assignedAgentId && !['RESOLVED', 'CLOSED'].includes(t.status)).length,
@@ -140,6 +163,7 @@ export default function ManagerTeamPage() {
             <tr>
               <th>Uzman</th>
               <th style={{ width: 90 }}>Rol</th>
+              <th style={{ width: 160 }}>Ekip</th>
               <th style={{ width: 80 }}>Açık</th>
               <th style={{ width: 80 }}>İşlemde</th>
               <th style={{ width: 80 }}>Çözülen</th>
@@ -168,6 +192,29 @@ export default function ManagerTeamPage() {
                   </td>
                   <td>
                     <span className="badge">{agent.role === 'MANAGER' ? 'Yönetici' : 'Uzman'}</span>
+                  </td>
+                  <td>
+                    {teamSaving === agent.id ? (
+                      <span className="muted" style={{ fontSize: 12 }}>Kaydediliyor…</span>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {agent.team && TEAM_COLOR[agent.team] && (
+                          <span style={{
+                            display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
+                            background: TEAM_COLOR[agent.team].color, flexShrink: 0,
+                          }} />
+                        )}
+                        <select
+                          className="select"
+                          style={{ fontSize: 12, padding: '3px 8px', height: 28, minWidth: 120 }}
+                          value={agent.team || ''}
+                          onChange={(e) => handleTeamChange(agent.id, e.target.value)}
+                        >
+                          <option value="">— Ekip seç —</option>
+                          {TEAMS.map((t) => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                      </div>
+                    )}
                   </td>
                   <td className="mono" style={{ fontWeight: 600 }}>{open}</td>
                   <td className="mono">{inProgress}</td>

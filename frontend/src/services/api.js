@@ -190,6 +190,11 @@ export async function getAgents() {
   return res.data;
 }
 
+export async function updateAgentTeam(agentId, team) {
+  const res = await api.patch(`/users/${agentId}/team`, { team });
+  return res.data;
+}
+
 export async function getNotifications() {
   const res = await api.get('/notifications');
   return res.data;
@@ -359,6 +364,16 @@ export async function summarizeTicket(ticketId) {
 export async function aiChat(message, context = '') {
   const res = await api.post('/ai/chat', { message, context });
   return res.data.text;
+}
+
+export async function findSimilarTickets(ticketId) {
+  const res = await api.post(`/ai/similar-tickets/${ticketId}`);
+  return res.data.text;
+}
+
+export async function getRecentActivity(limit = 20) {
+  const res = await api.get('/activity/recent', { params: { limit } });
+  return res.data;
 }
 
 export default api;

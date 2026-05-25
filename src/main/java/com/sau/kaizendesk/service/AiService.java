@@ -16,14 +16,14 @@ import org.springframework.web.client.RestClient;
 @Transactional(readOnly = true)
 public class AiService {
 
-    private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-    private static final String MODEL = "llama-3.1-8b-instant";
+    private static final String GEMINI_URL =
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 
     private final TicketRepository ticketRepository;
     private final CommentRepository commentRepository;
     private final RestClient restClient;
 
-    @Value("${groq.api-key:}")
+    @Value("${gemini.api-key:}")
     private String apiKey;
 
     public AiService(TicketRepository ticketRepository, CommentRepository commentRepository) {
@@ -33,13 +33,10 @@ public class AiService {
     }
 
     public String summarizeTicket(Long ticketId) {
-        if (apiKey == null || apiKey.isBlank()) {
-            return "AI servisi yapılandırılmamış (GROQ_API_KEY eksik).";
-        }
+        if (apiKey == null || apiKey.isBlank()) return "AI servisi yapılandırılmamış (GEMINI_API_KEY eksik).";
 
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket bulunamadı: " + ticketId));
-
         List<Comment> comments = commentRepository.findByTicketIdOrderByCreatedAtAsc(ticketId);
 
         StringBuilder sb = new StringBuilder();
@@ -48,13 +45,11 @@ public class AiService {
         sb.append("Açıklama: ").append(ticket.getDescription()).append("\n");
         sb.append("Durum: ").append(ticket.getStatus()).append("\n");
         sb.append("Öncelik: ").append(ticket.getPriority()).append("\n\n");
-
         if (!comments.isEmpty()) {
             sb.append("Konuşma geçmişi:\n");
             for (Comment c : comments) {
                 String author = c.getUser() != null ? c.getUser().getUsername() : "Bilinmeyen";
-                String type = c.isInternal() ? "[Dahili] " : "";
-                sb.append("- ").append(author).append(" ").append(type)
+                sb.append(c.isInternal() ? "[Dahili] " : "").append(author)
                         .append(": ").append(c.getMessage()).append("\n");
             }
         }
@@ -63,28 +58,7 @@ public class AiService {
                 + "Sorunun ne olduğunu, şu anki durumu ve varsa çözümü belirt. "
                 + "Teknik olmayan, sade bir dille yaz.\n\n" + sb;
 
-        return callGroq("Sen bir destek sistemi asistanısın.", prompt);
-    }
-
-    public String analyzeDashboard(String statsJson) {
-        if (apiKey == null || apiKey.isBlank()) return "AI servisi yapılandırılmamış.";
-        String prompt = "Aşağıdaki destek merkezi istatistiklerini analiz et ve Türkçe olarak 3-4 cümlelik kısa bir yönetici özeti yaz. "
-                + "Dikkat çeken noktalara, olumlu/olumsuz trendlere değin. Sade ve net ol.\n\n" + statsJson;
-        return callGroq("Sen bir destek merkezi analisti ve yönetim danışmanısın.", prompt);
-    }
-
-    public String analyzeTeam(String teamJson) {
-        if (apiKey == null || apiKey.isBlank()) return "AI servisi yapılandırılmamış.";
-        String prompt = "Aşağıdaki destek ekibi performans verilerini analiz et ve Türkçe olarak 3-4 cümlelik bir özet yaz. "
-                + "Öne çıkan ajanları, iş yükü dağılımını ve önerileri belirt.\n\n" + teamJson;
-        return callGroq("Sen bir ekip performans analisti ve yönetim danışmanısın.", prompt);
-    }
-
-    public String analyzeSla(String slaJson) {
-        if (apiKey == null || apiKey.isBlank()) return "AI servisi yapılandırılmamış.";
-        String prompt = "Aşağıdaki SLA verilerini analiz et. Hangi ticket'ların kritik risk altında olduğunu, "
-                + "ortak sebepleri ve alınması gereken önlemleri Türkçe olarak 3-4 cümleyle açıkla.\n\n" + slaJson;
-        return callGroq("Sen bir SLA ve operasyon risk analisti ve yönetim danışmanısın.", prompt);
+        return callGemini(prompt);
     }
 
     public String suggestPriority(String title, String description) {
@@ -95,7 +69,7 @@ public class AiService {
                 + "Başlık: " + title + "\n"
                 + "Açıklama: " + description;
 
-        String result = callGroq("Sen bir destek sistemi öncelik sınıflandırıcısısın.", prompt).trim();
+        String result = callGemini(prompt).trim();
         if (result.contains("CRITICAL")) return "CRITICAL";
         if (result.contains("HIGH")) return "HIGH";
         if (result.contains("LOW")) return "LOW";
@@ -103,20 +77,16 @@ public class AiService {
     }
 
     public String suggestReply(Long ticketId) {
-        if (apiKey == null || apiKey.isBlank()) {
-            return "AI servisi yapılandırılmamış (GROQ_API_KEY eksik).";
-        }
+        if (apiKey == null || apiKey.isBlank()) return "AI servisi yapılandırılmamış (GEMINI_API_KEY eksik).";
 
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket bulunamadı: " + ticketId));
-
         List<Comment> comments = commentRepository.findByTicketIdOrderByCreatedAtAsc(ticketId);
 
         StringBuilder sb = new StringBuilder();
         sb.append("Başlık: ").append(ticket.getTitle()).append("\n");
         sb.append("Açıklama: ").append(ticket.getDescription()).append("\n");
         sb.append("Durum: ").append(ticket.getStatus()).append("\n\n");
-
         if (!comments.isEmpty()) {
             sb.append("Konuşma geçmişi:\n");
             for (Comment c : comments) {
@@ -127,15 +97,13 @@ public class AiService {
         }
 
         String prompt = "Aşağıdaki destek talebine müşteriye yazılacak profesyonel ve yardımcı bir Türkçe yanıt taslağı oluştur. "
-                + "Yanıt kısa, net ve çözüm odaklı olsun. Sadece yanıt metnini yaz, başka açıklama ekleme.\n\n" + sb;
+                + "Yanıt kısa, net ve çözüm odaklı olsun. Sadece yanıt metnini yaz.\n\n" + sb;
 
-        return callGroq("Sen deneyimli bir müşteri destek uzmanısın.", prompt);
+        return callGemini(prompt);
     }
 
     public String chat(String userMessage, String conversationContext) {
-        if (apiKey == null || apiKey.isBlank()) {
-            return "AI servisi yapılandırılmamış (GROQ_API_KEY eksik).";
-        }
+        if (apiKey == null || apiKey.isBlank()) return "AI servisi yapılandırılmamış (GEMINI_API_KEY eksik).";
 
         String system = "Sen KaizenDesk destek portalının yardımcı asistanısın. "
                 + "Müşterilerin destek talebi oluşturmasına ve sorunlarını tanımlamasına yardımcı oluyorsun. "
@@ -146,32 +114,85 @@ public class AiService {
                 ? conversationContext + "\nKullanıcı: " + userMessage
                 : userMessage;
 
-        return callGroq(system, fullMessage);
+        return callGemini(system + "\n\n" + fullMessage);
+    }
+
+    public String findSimilarTickets(Long ticketId) {
+        if (apiKey == null || apiKey.isBlank()) return "[]";
+
+        Ticket target = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new IllegalArgumentException("Ticket bulunamadı: " + ticketId));
+
+        List<Ticket> others = ticketRepository.findAll().stream()
+                .filter(t -> !t.getId().equals(ticketId))
+                .filter(t -> t.getTitle() != null)
+                .limit(80)
+                .toList();
+
+        if (others.isEmpty()) return "[]";
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("Hedef talep:\n");
+        sb.append("ID: ").append(target.getId()).append(", Başlık: ").append(target.getTitle());
+        if (target.getDescription() != null) sb.append(", Açıklama: ").append(target.getDescription(), 0, Math.min(200, target.getDescription().length()));
+        sb.append("\n\nDiğer talepler listesi:\n");
+        for (Ticket t : others) {
+            sb.append("ID:").append(t.getId()).append(" | ").append(t.getTitle());
+            if (t.getDescription() != null) sb.append(" | ").append(t.getDescription(), 0, Math.min(100, t.getDescription().length()));
+            sb.append("\n");
+        }
+
+        String prompt = "Aşağıdaki hedef talebe benzer olan talepleri listeden bul. "
+                + "Benzerlik kriterleri: aynı sorun türü, benzer anahtar kelimeler, aynı sistem/ürün. "
+                + "En fazla 5 benzer talep döndür. "
+                + "SADECE şu JSON formatında yanıt ver, başka hiçbir şey yazma:\n"
+                + "[{\"id\":123,\"reason\":\"Kısa sebep\"},{\"id\":456,\"reason\":\"Kısa sebep\"}]\n\n"
+                + sb;
+
+        return callGemini(prompt);
+    }
+
+    public String analyzeDashboard(String statsJson) {
+        if (apiKey == null || apiKey.isBlank()) return "AI servisi yapılandırılmamış.";
+        String prompt = "Aşağıdaki destek merkezi istatistiklerini analiz et ve Türkçe olarak 3-4 cümlelik kısa bir yönetici özeti yaz. "
+                + "Dikkat çeken noktalara, olumlu/olumsuz trendlere değin. Sade ve net ol.\n\n" + statsJson;
+        return callGemini(prompt);
+    }
+
+    public String analyzeTeam(String teamJson) {
+        if (apiKey == null || apiKey.isBlank()) return "AI servisi yapılandırılmamış.";
+        String prompt = "Aşağıdaki destek ekibi performans verilerini analiz et ve Türkçe olarak 3-4 cümlelik bir özet yaz. "
+                + "Öne çıkan ajanları, iş yükü dağılımını ve önerileri belirt.\n\n" + teamJson;
+        return callGemini(prompt);
+    }
+
+    public String analyzeSla(String slaJson) {
+        if (apiKey == null || apiKey.isBlank()) return "AI servisi yapılandırılmamış.";
+        String prompt = "Aşağıdaki SLA verilerini analiz et. Hangi ticket'ların kritik risk altında olduğunu, "
+                + "ortak sebepleri ve alınması gereken önlemleri Türkçe olarak 3-4 cümleyle açıkla.\n\n" + slaJson;
+        return callGemini(prompt);
     }
 
     @SuppressWarnings("unchecked")
-    private String callGroq(String systemPrompt, String userMessage) {
+    private String callGemini(String prompt) {
         var body = Map.of(
-                "model", MODEL,
-                "messages", List.of(
-                        Map.of("role", "system", "content", systemPrompt),
-                        Map.of("role", "user", "content", userMessage)
-                ),
-                "max_tokens", 512
+                "contents", List.of(
+                        Map.of("parts", List.of(Map.of("text", prompt)))
+                )
         );
 
         try {
             var response = restClient.post()
-                    .uri(GROQ_URL)
-                    .header("Authorization", "Bearer " + apiKey)
+                    .uri(GEMINI_URL + "?key=" + apiKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()
                     .body(Map.class);
 
-            var choices = (List<Map<String, Object>>) response.get("choices");
-            var message = (Map<String, Object>) choices.get(0).get("message");
-            return (String) message.get("content");
+            var candidates = (List<Map<String, Object>>) response.get("candidates");
+            var content = (Map<String, Object>) candidates.get(0).get("content");
+            var parts = (List<Map<String, Object>>) content.get("parts");
+            return (String) parts.get(0).get("text");
         } catch (Exception e) {
             return "Yanıt alınamadı: " + e.getMessage();
         }

@@ -8,6 +8,7 @@ public class UserResponse {
     private String name;
     private String email;
     private UserRole role;
+    private String team;
 
     public Long getId() {
         return id;
@@ -39,5 +40,13 @@ public class UserResponse {
 
     public void setRole(UserRole role) {
         this.role = role;
+    }
+
+    public String getTeam() {
+        return team;
+    }
+
+    public void setTeam(String team) {
+        this.team = team;
     }
 }

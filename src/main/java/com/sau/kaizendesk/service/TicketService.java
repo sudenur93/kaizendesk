@@ -46,6 +46,7 @@ public class TicketService {
     private final SlaPolicyRepository slaPolicyRepository;
     private final TicketNotificationService ticketNotificationService;
     private final TicketWorkflowService ticketWorkflowService;
+    private final ActivityLogService activityLogService;
 
     public TicketService(
             TicketRepository ticketRepository,
@@ -55,7 +56,8 @@ public class TicketService {
             IssueTypeRepository issueTypeRepository,
             SlaPolicyRepository slaPolicyRepository,
             TicketNotificationService ticketNotificationService,
-            TicketWorkflowService ticketWorkflowService
+            TicketWorkflowService ticketWorkflowService,
+            ActivityLogService activityLogService
     ) {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
@@ -65,6 +67,7 @@ public class TicketService {
         this.slaPolicyRepository = slaPolicyRepository;
         this.ticketNotificationService = ticketNotificationService;
         this.ticketWorkflowService = ticketWorkflowService;
+        this.activityLogService = activityLogService;
     }
 
     @Transactional
@@ -119,6 +122,7 @@ public class TicketService {
         }
         ticketNotificationService.onTicketCreated(savedTicket);
         ticketNotificationService.maybeNotifySlaAtRisk(savedTicket, now);
+        activityLogService.log("TICKET_CREATED", username, savedTicket, null);
         return mapToResponse(savedTicket);
     }
 
@@ -179,6 +183,11 @@ public class TicketService {
 
     @Transactional
     public TicketResponse updateStatus(Long id, TicketStatus newStatus, String resolutionNote) {
+        return updateStatus(id, newStatus, resolutionNote, null);
+    }
+
+    @Transactional
+    public TicketResponse updateStatus(Long id, TicketStatus newStatus, String resolutionNote, String actor) {
         Ticket ticket = ticketRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + id));
 
@@ -211,6 +220,7 @@ public class TicketService {
         ticketNotificationService.onStatusChanged(saved, from, newStatus);
         ticketNotificationService.maybeNotifySlaBreached(saved, wasBreached, now);
         ticketNotificationService.maybeNotifySlaAtRisk(saved, now);
+        activityLogService.log("STATUS_CHANGED", actor, saved, from.name() + " → " + newStatus.name());
         return mapToResponse(saved);
     }
 
@@ -274,6 +284,7 @@ public class TicketService {
         ticketNotificationService.onAgentAssigned(updatedTicket);
         ticketNotificationService.maybeNotifySlaBreached(updatedTicket, wasBreached, now);
         ticketNotificationService.maybeNotifySlaAtRisk(updatedTicket, now);
+        activityLogService.log("AGENT_ASSIGNED", actorUsername, updatedTicket, agent.getUsername());
         return mapToResponse(updatedTicket);
     }
 

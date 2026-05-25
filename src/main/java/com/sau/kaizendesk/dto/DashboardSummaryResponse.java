@@ -13,6 +13,7 @@ public class DashboardSummaryResponse {
     private long closedTickets;
 
     private long slaBreachedCount;
+    private long slaInTargetCount;
     private double slaComplianceRate;
     private long closedToday;
     private long closedInRange;
@@ -78,6 +79,14 @@ public class DashboardSummaryResponse {
 
     public void setSlaBreachedCount(long slaBreachedCount) {
         this.slaBreachedCount = slaBreachedCount;
+    }
+
+    public long getSlaInTargetCount() {
+        return slaInTargetCount;
+    }
+
+    public void setSlaInTargetCount(long slaInTargetCount) {
+        this.slaInTargetCount = slaInTargetCount;
     }
 
     public double getSlaComplianceRate() {

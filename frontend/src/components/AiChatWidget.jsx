@@ -57,10 +57,10 @@ export default function AiChatWidget({ tickets = [] }) {
       {open && (
         <div style={{
           width: 340, height: 460,
-          background: 'var(--bg-card)',
+          background: 'var(--bg)',
           border: '1px solid var(--hairline)',
           borderRadius: 14,
-          boxShadow: '0 8px 32px rgba(0,0,0,.18)',
+          boxShadow: '0 8px 32px rgba(0,0,0,.28)',
           display: 'flex', flexDirection: 'column',
           marginBottom: 12,
           overflow: 'hidden',
@@ -70,7 +70,7 @@ export default function AiChatWidget({ tickets = [] }) {
             padding: '12px 16px',
             borderBottom: '1px solid var(--hairline)',
             display: 'flex', alignItems: 'center', gap: 8,
-            background: 'var(--bg-soft)',
+            background: 'var(--bg)',
           }}>
             <span style={{ fontSize: 16 }}>✦</span>
             <span style={{ fontWeight: 600, fontSize: 14, flex: 1 }}>KaizenDesk Asistan</span>

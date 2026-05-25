@@ -9,11 +9,13 @@ import CustomerNewTicketPage from './pages/CustomerNewTicketPage';
 import CustomerTicketDetailPage from './pages/CustomerTicketDetailPage';
 import AgentTicketsPage from './pages/AgentTicketsPage';
 import AgentTicketDetailPage from './pages/AgentTicketDetailPage';
+import AgentTeamPage from './pages/AgentTeamPage';
 import ManagerDashboardPage from './pages/ManagerDashboardPage';
 import ManagerSLAPage from './pages/ManagerSLAPage';
 import ManagerTeamPage from './pages/ManagerTeamPage';
 import ManagerApprovalsPage from './pages/ManagerApprovalsPage';
 import AccountSettingsPage from './pages/AccountSettingsPage';
+import ArchivePage from './pages/ArchivePage';
 
 function ProtectedRoute({ children, allowedRoles }) {
   if (!isLoggedIn()) return <Navigate to="/login" replace />;
@@ -86,6 +88,14 @@ export default function App() {
             }
           />
           <Route
+            path="/agent/team"
+            element={
+              <ProtectedRoute allowedRoles={['AGENT', 'MANAGER']}>
+                <AgentTeamPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/manager/dashboard"
             element={
               <ProtectedRoute allowedRoles={['MANAGER']}>
@@ -114,6 +124,14 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={['MANAGER']}>
                 <ManagerApprovalsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/archive"
+            element={
+              <ProtectedRoute allowedRoles={['CUSTOMER', 'AGENT', 'MANAGER']}>
+                <ArchivePage />
               </ProtectedRoute>
             }
           />

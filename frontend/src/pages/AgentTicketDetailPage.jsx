@@ -409,7 +409,7 @@ export default function AgentTicketDetailPage() {
                   )}
                 </div>
                 <div style={{ padding: '0 20px 16px', fontSize: 13.5, lineHeight: 1.6, color: 'var(--text-2)' }}>
-                  {aiSummarizing ? 'Claude AI özet oluşturuyor…' : aiSummary}
+                  {aiSummarizing ? 'Gemini AI özet oluşturuyor…' : aiSummary}
                 </div>
               </div>
             )}
@@ -572,32 +572,12 @@ export default function AgentTicketDetailPage() {
                       />
                       <div className="composer-foot">
                         <span className="muted mono" style={{ fontSize: 11, paddingLeft: 4 }}>{commentText.length} / 1000</span>
-                        <div className="row" style={{ gap: 8 }}>
-                          <button
-                            type="button"
-                            className="btn btn-sm"
-                            disabled={working || aiReplySuggesting}
-                            onClick={async () => {
-                              setAiReplySuggesting(true);
-                              try {
-                                const suggested = await suggestReply(ticket.id);
-                                setCommentText(suggested);
-                              } catch {
-                                if (pushToast) pushToast('Yanıt önerisi oluşturulamadı.');
-                              } finally {
-                                setAiReplySuggesting(false);
-                              }
-                            }}
-                          >
-                            {aiReplySuggesting ? '…' : '✦ Yanıt Öner'}
-                          </button>
-                          <button type="submit"
-                            className={`btn btn-sm ${noteMode === NOTE_INTERNAL ? 'btn-warn' : ''} ${commentText.trim() && noteMode === NOTE_EXTERNAL ? 'btn-accent' : ''}`}
-                            disabled={working || !commentText.trim()}>
-                            <Ic.Send size={13} />
-                            {working ? 'Gönderiliyor…' : noteMode === NOTE_INTERNAL ? 'Not Ekle' : 'Gönder'}
-                          </button>
-                        </div>
+                        <button type="submit"
+                          className={`btn btn-sm ${noteMode === NOTE_INTERNAL ? 'btn-warn' : ''} ${commentText.trim() && noteMode === NOTE_EXTERNAL ? 'btn-accent' : ''}`}
+                          disabled={working || !commentText.trim()}>
+                          <Ic.Send size={13} />
+                          {working ? 'Gönderiliyor…' : noteMode === NOTE_INTERNAL ? 'Not Ekle' : 'Gönder'}
+                        </button>
                       </div>
                     </form>
                   </div>

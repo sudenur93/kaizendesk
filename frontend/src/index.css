@@ -856,6 +856,8 @@ a { color: inherit; text-decoration: none; }
 
 /* Skeleton */
 @keyframes skeleton-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
 
 /* ===== Responsive ===== */
 

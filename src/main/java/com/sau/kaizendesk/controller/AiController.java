@@ -64,4 +64,10 @@ public class AiController {
     public ResponseEntity<AiTextResponse> analyzeSla(@RequestBody Map<String, String> body) {
         return ResponseEntity.ok(new AiTextResponse(aiService.analyzeSla(body.get("stats"))));
     }
+
+    @PreAuthorize("hasAnyRole('AGENT','MANAGER')")
+    @PostMapping("/similar-tickets/{ticketId}")
+    public ResponseEntity<AiTextResponse> similarTickets(@PathVariable Long ticketId) {
+        return ResponseEntity.ok(new AiTextResponse(aiService.findSimilarTickets(ticketId)));
+    }
 }

@@ -262,6 +262,26 @@ export const Ic = {
       <path d="M12 3v12" />
     </>
   ),
+  ExternalLink: makeIcon(
+    <>
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <path d="M15 3h6v6" />
+      <path d="m10 14 11-11" />
+    </>
+  ),
+  Send: makeIcon(
+    <>
+      <path d="m22 2-7 20-4-9-9-4Z" />
+      <path d="M22 2 11 13" />
+    </>
+  ),
+  Archive: makeIcon(
+    <>
+      <rect x="2" y="3" width="20" height="5" rx="1" />
+      <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
+      <path d="M10 12h4" />
+    </>
+  ),
 };
 
 export default Ic;

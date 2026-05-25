@@ -40,8 +40,8 @@ spring:
       mail.smtp.starttls.enable: ${SMTP_STARTTLS:true}
       mail.smtp.starttls.required: ${SMTP_STARTTLS:true}
 
-groq:
-  api-key: ${GROQ_API_KEY:}
+gemini:
+  api-key: ${GEMINI_API_KEY:}
 
 kaizendesk:
   attachments:

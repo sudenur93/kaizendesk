@@ -41,6 +41,8 @@ class TicketServiceStatusTest {
 	TicketNotificationService ticketNotificationService;
 	@Mock
 	TicketWorkflowService ticketWorkflowService;
+	@Mock
+	com.sau.kaizendesk.service.ActivityLogService activityLogService;
 
 	TicketService ticketService;
 
@@ -49,7 +51,7 @@ class TicketServiceStatusTest {
 		ticketService = new TicketService(
 				ticketRepository, userRepository, productRepository,
 				categoryRepository, issueTypeRepository, slaPolicyRepository,
-				ticketNotificationService, ticketWorkflowService
+				ticketNotificationService, ticketWorkflowService, activityLogService
 		);
 	}
 

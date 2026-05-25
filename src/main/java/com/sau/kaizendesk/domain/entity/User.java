@@ -31,6 +31,9 @@ public class User {
     @Column(nullable = false)
     private UserRole role = UserRole.CUSTOMER;
 
+    @Column(name = "team")
+    private String team;
+
     public Long getId() {
         return id;
     }
@@ -69,5 +72,13 @@ public class User {
 
     public void setRole(UserRole role) {
         this.role = role;
+    }
+
+    public String getTeam() {
+        return team;
+    }
+
+    public void setTeam(String team) {
+        this.team = team;
     }
 }

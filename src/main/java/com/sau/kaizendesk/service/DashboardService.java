@@ -97,6 +97,7 @@ public class DashboardService {
         long doneAndNotBreached = doneInRange.stream()
                 .filter(t -> !SlaEvaluator.isBreached(t, now))
                 .count();
+        resp.setSlaInTargetCount(doneAndNotBreached);
         resp.setSlaComplianceRate(doneTotal == 0 ? 100.0 : Math.round(doneAndNotBreached * 1000.0 / doneTotal) / 10.0);
 
         Instant startOfToday = LocalDate.now(ZoneOffset.UTC).atStartOfDay().toInstant(ZoneOffset.UTC);

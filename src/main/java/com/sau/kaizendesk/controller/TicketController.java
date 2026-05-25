@@ -68,14 +68,16 @@ public class TicketController {
 		return ResponseEntity.ok(ticketService.getTicketByIdForUser(id, username, isCustomer));
     }
 
-    @PreAuthorize("hasAnyRole('AGENT','MANAGER')")
+    @PreAuthorize("hasAnyRole('AGENT','MANAGER','CUSTOMER')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<TicketResponse> updateTicketStatus(
             @PathVariable Long id,
-            @Valid @RequestBody UpdateStatusRequest request
+            @Valid @RequestBody UpdateStatusRequest request,
+            @AuthenticationPrincipal Jwt jwt
     ) {
+        String actor = jwt.getClaimAsString("preferred_username");
         return ResponseEntity.ok(
-                ticketService.updateStatus(id, request.getStatus(), request.getResolutionNote())
+                ticketService.updateStatus(id, request.getStatus(), request.getResolutionNote(), actor)
         );
     }
 

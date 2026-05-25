@@ -21,19 +21,22 @@ public class CommentService {
     private final UserRepository userRepository;
     private final TicketAccessService ticketAccessService;
     private final TicketNotificationService ticketNotificationService;
+    private final ActivityLogService activityLogService;
 
     public CommentService(
             CommentRepository commentRepository,
             TicketRepository ticketRepository,
             UserRepository userRepository,
             TicketAccessService ticketAccessService,
-            TicketNotificationService ticketNotificationService
+            TicketNotificationService ticketNotificationService,
+            ActivityLogService activityLogService
     ) {
         this.commentRepository = commentRepository;
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
         this.ticketAccessService = ticketAccessService;
         this.ticketNotificationService = ticketNotificationService;
+        this.activityLogService = activityLogService;
     }
 
     @Transactional
@@ -70,6 +73,9 @@ public class CommentService {
                 // bildirim hatası yorum kaydını engellemesin
             }
         }
+
+        String eventType = request.isInternal() ? "INTERNAL_NOTE" : "COMMENT_ADDED";
+        activityLogService.log(eventType, username, ticket, null);
 
         return mapToResponse(savedComment);
     }
