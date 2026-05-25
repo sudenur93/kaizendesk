@@ -68,7 +68,7 @@ public class TicketController {
 		return ResponseEntity.ok(ticketService.getTicketByIdForUser(id, username, isCustomer));
     }
 
-    @PreAuthorize("hasAnyRole('AGENT','MANAGER','CUSTOMER')")
+    @PreAuthorize("hasAnyRole('AGENT','MANAGER')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<TicketResponse> updateTicketStatus(
             @PathVariable Long id,
