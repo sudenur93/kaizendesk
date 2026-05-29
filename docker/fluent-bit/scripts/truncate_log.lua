@@ -1,9 +1,10 @@
 function truncate(tag, timestamp, record)
-  local log = record["log"]
-  if log ~= nil then
-    local max_len = 200
-    if string.len(log) > max_len then
-      record["log"] = string.sub(log, 1, max_len)
+  local max_len = 2000
+  -- JSON parse sonrası mesaj "message" alanında; eski format için "log" da kontrol edilir
+  for _, field in ipairs({ "message", "log" }) do
+    local val = record[field]
+    if val ~= nil and string.len(val) > max_len then
+      record[field] = string.sub(val, 1, max_len)
     end
   end
 

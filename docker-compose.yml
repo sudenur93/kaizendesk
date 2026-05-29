@@ -151,6 +151,7 @@ services:
     command: ["/fluent-bit/bin/fluent-bit", "-c", "/fluent-bit/etc/fluent-bit.conf"]
     volumes:
       - ./docker/fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
+      - ./docker/fluent-bit/parsers.conf:/fluent-bit/etc/custom-parsers.conf:ro
       - ./docker/fluent-bit/scripts:/fluent-bit/etc/scripts:ro
       - app_logs:/var/log/kaizendesk
     depends_on:
