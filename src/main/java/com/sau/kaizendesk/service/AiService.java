@@ -12,12 +12,29 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 
+/**
+ * Google Gemini API ile yapay zeka özelliklerini sağlayan servis.
+ *
+ * API anahtarı GEMINI_API_KEY ortam değişkeninden (veya .env dosyasından) okunur.
+ * Anahtar eksikse tüm metodlar hata üretmek yerine açıklayıcı bir mesaj döner.
+ *
+ * Desteklenen özellikler:
+ *   summarizeTicket     → Bilet + yorumları Türkçe özetler (3-5 cümle)
+ *   suggestPriority     → Başlık ve açıklamaya göre LOW/MEDIUM/HIGH/CRITICAL önerir
+ *   suggestReply        → Müşteriye yazılacak yanıt taslağı oluşturur
+ *   chat                → Destek asistanı sohbet botu (konuşma bağlamıyla)
+ *   findSimilarTickets  → Benzer biletleri JSON formatında listeler (max 5)
+ *   analyzeDashboard    → Dashboard istatistiklerini analiz eder
+ *   analyzeTeam         → Ekip performansını değerlendirir
+ *   analyzeSla          → SLA verilerini yorumlar
+ */
 @Service
 @Transactional(readOnly = true)
 public class AiService {
 
+    /** Gemini 2.5 Flash Lite modeli — hız/maliyet dengesi için tercih edilmiştir. */
     private static final String GEMINI_URL =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent";
 
     private final TicketRepository ticketRepository;
     private final CommentRepository commentRepository;
@@ -173,6 +190,11 @@ public class AiService {
         return callGemini(prompt);
     }
 
+    /**
+     * Gemini API'ye HTTP POST isteği gönderir ve metin yanıtını döner.
+     * Gemini yanıt yapısı: { candidates: [{ content: { parts: [{ text: "..." }] } }] }
+     * Herhangi bir hata durumunda exception fırlatmak yerine kullanıcı dostu mesaj döner.
+     */
     @SuppressWarnings("unchecked")
     private String callGemini(String prompt) {
         var body = Map.of(
@@ -189,6 +211,7 @@ public class AiService {
                     .retrieve()
                     .body(Map.class);
 
+            // Yanıt JSON ağacından metin içeriğini çıkar
             var candidates = (List<Map<String, Object>>) response.get("candidates");
             var content = (Map<String, Object>) candidates.get(0).get("content");
             var parts = (List<Map<String, Object>>) content.get("parts");

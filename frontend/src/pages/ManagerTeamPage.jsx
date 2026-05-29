@@ -1,10 +1,34 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import Ic from '../components/Icons';
-import { Avatar, EmptyState, PriorityBadge, SlaBar, StatusBadge, fmtDate, getInitials, slaInfo } from '../components/Common';
+import { Avatar, EmptyState, PriorityBadge, SlaBar, SkeletonTable, StatusBadge, fmtDate, getInitials, slaInfo } from '../components/Common';
 import { analyzeTeam, getAgents, getTickets, updateAgentTeam } from '../services/api';
 
 const TEAMS = ['IT Destek', 'Bakım & Arıza', 'Üretim', 'Kalite Kontrol', 'Genel'];
+
+function exportTeamCSV(agentStats, filename) {
+  const headers = ['Uzman', 'E-posta', 'Rol', 'Ekip', 'Açık', 'İşlemde', 'Çözülen', 'SLA İhlal', 'Risk'];
+  const escape = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const lines = [
+    headers.join(','),
+    ...agentStats.map(({ agent, open, inProgress, resolved, breached, atRisk }) => [
+      escape(agent.name),
+      escape(agent.email),
+      agent.role === 'MANAGER' ? 'Yönetici' : 'Uzman',
+      escape(agent.team || ''),
+      open,
+      inProgress,
+      resolved,
+      breached,
+      atRisk,
+    ].join(',')),
+  ];
+  const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
 
 const TEAM_COLOR = {
   'IT Destek':      { bg: '#e8f0fe', color: '#1a56db' },
@@ -94,6 +118,15 @@ export default function ManagerTeamPage() {
         <div className="row" style={{ gap: 8 }}>
           <button
             type="button"
+            className="btn btn-sm btn-ghost"
+            disabled={loading || agentStats.length === 0}
+            onClick={() => exportTeamCSV(agentStats, `ekip-performans-${new Date().toISOString().slice(0, 10)}.csv`)}
+            title="Ekip verilerini CSV olarak indir"
+          >
+            ↓ CSV
+          </button>
+          <button
+            type="button"
             className="btn btn-sm"
             disabled={aiAnalyzing || agents.length === 0}
             onClick={async () => {
@@ -173,7 +206,7 @@ export default function ManagerTeamPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="7" className="muted" style={{ padding: 40, textAlign: 'center' }}>Yükleniyor…</td></tr>
+              <tr><td colSpan="8" style={{ padding: 0 }}><SkeletonTable rows={5} cols={6} /></td></tr>
             ) : agentStats.length === 0 ? (
               <tr><td colSpan="7">
                 <EmptyState type="team" title="Henüz destek uzmanı yok" sub="Onaylanan destek uzmanları burada görünecek." />

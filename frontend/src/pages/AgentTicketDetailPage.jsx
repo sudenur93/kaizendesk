@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import Ic from '../components/Icons';
-import { Avatar, PriorityBadge, SlaBar, StatusBadge, fmtDate, getInitials, slaInfo } from '../components/Common';
+import { Avatar, PriorityBadge, SlaBar, Skeleton, SkeletonCard, StatusBadge, fmtDate, getInitials, slaInfo } from '../components/Common';
 import {
   addTicketComment,
   addWorklog,
@@ -20,11 +20,29 @@ import {
   summarizeTicket,
   suggestReply,
   updateTicketStatus,
+  updateTicketPriority,
   uploadTicketAttachment,
 } from '../services/api';
+import { printTicketPDF } from '../printPDF';
 
 const NOTE_INTERNAL = 'internal';
 const NOTE_EXTERNAL = 'external';
+
+function AgentInlineImage({ ticketId, att, fname }) {
+  const [src, setSrc] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    downloadTicketAttachment(ticketId, att.id)
+      .then((blob) => { if (alive) setSrc(URL.createObjectURL(blob)); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [ticketId, att.id]);
+  if (!src) return <span style={{ fontSize: 12, color: 'var(--text-3)' }}>⏳ {fname}</span>;
+  return (
+    <img src={src} alt={fname}
+      style={{ maxWidth: 260, maxHeight: 180, borderRadius: 8, border: '1px solid var(--hairline)', display: 'block', marginTop: 4 }} />
+  );
+}
 
 const STATUS_TRANSITIONS = {
   NEW:                  [{ value: 'IN_PROGRESS',          label: 'İşleme Al',      accent: true }],
@@ -77,6 +95,7 @@ export default function AgentTicketDetailPage() {
   const [wlWorking, setWlWorking] = useState(false);
   const [wlError, setWlError] = useState('');
   const [uploadWorking, setUploadWorking] = useState(false);
+  const [commentImage, setCommentImage] = useState(null);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
@@ -84,6 +103,7 @@ export default function AgentTicketDetailPage() {
   const [resolveNote, setResolveNote] = useState('');
   const [resolveWorking, setResolveWorking] = useState(false);
   const isManager = getRole() === 'MANAGER';
+  const isAgent   = getRole() === 'AGENT';
   const [agents, setAgents] = useState([]);
   const [reassigning, setReassigning] = useState(false);
   const [aiSummary, setAiSummary] = useState('');
@@ -98,6 +118,17 @@ export default function AgentTicketDetailPage() {
       .catch(() => {});
     return () => { cancelled = true; };
   }, [isManager]);
+
+  async function handlePriorityChange(newPriority) {
+    if (!ticket?.id || newPriority === ticket.priority) return;
+    try {
+      const updated = await updateTicketPriority(ticket.id, newPriority);
+      setTicket(updated);
+      if (pushToast) pushToast(`Öncelik → ${newPriority === 'HIGH' ? 'Yüksek' : newPriority === 'MEDIUM' ? 'Orta' : 'Düşük'}`);
+    } catch {
+      if (pushToast) pushToast('Öncelik güncellenemedi.');
+    }
+  }
 
   async function handleReassign(newAgentId) {
     if (!ticket?.id || !newAgentId) return;
@@ -231,13 +262,30 @@ export default function AgentTicketDetailPage() {
     }
   }
 
+  function handleCommentImagePick(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (commentImage) URL.revokeObjectURL(commentImage.previewUrl);
+    setCommentImage({ file, previewUrl: URL.createObjectURL(file) });
+    e.target.value = '';
+  }
+
   async function handleCommentSubmit(e) {
     e.preventDefault();
     const message = commentText.trim();
-    if (!message) return;
+    if (!message && !commentImage) return;
     setWorking(true);
     try {
-      const created = await addTicketComment(ticket.id, message, noteMode === NOTE_INTERNAL);
+      let finalMsg = message;
+      if (commentImage) {
+        const att = await uploadTicketAttachment(ticket.id, commentImage.file);
+        setAttachments((prev) => [...prev, att]);
+        const marker = `📎 [${commentImage.file.name}]`;
+        finalMsg = message ? `${message}\n${marker}` : marker;
+        URL.revokeObjectURL(commentImage.previewUrl);
+        setCommentImage(null);
+      }
+      const created = await addTicketComment(ticket.id, finalMsg, noteMode === NOTE_INTERNAL);
       setComments((prev) => [...prev, created]);
       setCommentText('');
       if (pushToast) pushToast(noteMode === NOTE_INTERNAL ? 'İç not eklendi' : 'Yanıt gönderildi');
@@ -326,7 +374,29 @@ export default function AgentTicketDetailPage() {
         )}
 
         {loading ? (
-          <div className="card card-pad muted" style={{ textAlign: 'center', padding: 60 }}>Yükleniyor…</div>
+          <>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 20 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="row" style={{ gap: 8, marginBottom: 10 }}>
+                  <Skeleton width={40} height={20} radius={6} />
+                  <Skeleton width={60} height={20} radius={10} />
+                  <Skeleton width={60} height={20} radius={10} />
+                </div>
+                <Skeleton width="55%" height={26} radius={6} style={{ marginBottom: 10 }} />
+                <Skeleton width="38%" height={14} radius={4} />
+              </div>
+            </div>
+            <div className="detail-grid">
+              <div className="col" style={{ gap: 18 }}>
+                <div className="card card-pad"><SkeletonCard rows={4} /></div>
+                <div className="card card-pad"><SkeletonCard rows={6} /></div>
+              </div>
+              <div className="col" style={{ gap: 18 }}>
+                <div className="card card-pad"><SkeletonCard rows={6} /></div>
+                <div className="card card-pad"><SkeletonCard rows={2} /></div>
+              </div>
+            </div>
+          </>
         ) : !ticket ? (
           <div className="card card-pad muted" style={{ textAlign: 'center', padding: 60 }}>Talep bulunamadı.</div>
         ) : (
@@ -339,7 +409,6 @@ export default function AgentTicketDetailPage() {
                     #{ticket.id}
                   </span>
                   <StatusBadge status={ticket.status} />
-                  <PriorityBadge priority={ticket.priority} />
                   {ticket.slaBreached && (
                     <span className="badge p-high" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                       <Ic.AlertTriangle size={11} /> SLA İhlali
@@ -361,6 +430,14 @@ export default function AgentTicketDetailPage() {
 
               {/* Header aksiyon butonları */}
               <div className="row" style={{ gap: 8, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-ghost"
+                  onClick={() => printTicketPDF({ ticket, comments, attachments, productName, categoryName })}
+                  title="PDF olarak indir"
+                >
+                  ↓ PDF
+                </button>
                 <button
                   type="button"
                   className="btn btn-sm"
@@ -545,7 +622,20 @@ export default function AgentTicketDetailPage() {
                             <span className="spacer" />
                             <span className="time">{fmtDate(c.createdAt, 'datetime')}</span>
                           </div>
-                          <div className="text" style={{ whiteSpace: 'pre-wrap' }}>{c.message}</div>
+                          <div className="text" style={{ whiteSpace: 'pre-wrap' }}>
+                            {c.message.split(/(📎 \[[^\]]+\])/g).map((part, i) => {
+                              const match = part.match(/^📎 \[(.+)\]$/);
+                              if (match) {
+                                const fname = match[1];
+                                const att = attachments.find((a) => a.originalFileName === fname);
+                                const isImg = att && String(att.contentType || '').startsWith('image/');
+                                return isImg
+                                  ? <AgentInlineImage key={i} ticketId={ticket.id} att={att} fname={fname} />
+                                  : <span key={i} style={{ color: 'var(--accent)', fontSize: 13 }}>📎 {fname}</span>;
+                              }
+                              return <span key={i}>{part}</span>;
+                            })}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -561,20 +651,38 @@ export default function AgentTicketDetailPage() {
                           İç Not · yalnızca destek ekibi
                         </button>
                       </div>
+                      {commentImage && (
+                        <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--hairline)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <img src={commentImage.previewUrl} alt="önizleme"
+                            style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--hairline)' }} />
+                          <span style={{ fontSize: 12, color: 'var(--text-2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {commentImage.file.name}
+                          </span>
+                          <button type="button" className="btn btn-ghost btn-sm"
+                            onClick={() => { URL.revokeObjectURL(commentImage.previewUrl); setCommentImage(null); }}
+                            disabled={working}>✕</button>
+                        </div>
+                      )}
                       <textarea
                         placeholder={noteMode === NOTE_INTERNAL ? 'Takım içi not (müşteriye görünmez)…' : 'Müşteriye yanıtınızı yazın… (Ctrl+Enter ile gönder)'}
                         value={commentText}
                         onChange={(e) => setCommentText(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && commentText.trim()) handleCommentSubmit(e); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && (commentText.trim() || commentImage)) handleCommentSubmit(e); }}
                         maxLength={1000}
                         disabled={working}
                         style={noteMode === NOTE_INTERNAL ? { background: 'color-mix(in oklab, var(--warn) 6%, var(--surface))' } : {}}
                       />
                       <div className="composer-foot">
+                        <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Görsel ekle">
+                          <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleCommentImagePick} disabled={working} />
+                          <span className="btn btn-sm btn-ghost" style={{ padding: '4px 8px' }}>
+                            <Ic.Image size={14} />
+                          </span>
+                        </label>
                         <span className="muted mono" style={{ fontSize: 11, paddingLeft: 4 }}>{commentText.length} / 1000</span>
                         <button type="submit"
-                          className={`btn btn-sm ${noteMode === NOTE_INTERNAL ? 'btn-warn' : ''} ${commentText.trim() && noteMode === NOTE_EXTERNAL ? 'btn-accent' : ''}`}
-                          disabled={working || !commentText.trim()}>
+                          className={`btn btn-sm ${noteMode === NOTE_INTERNAL ? 'btn-warn' : ''} ${(commentText.trim() || commentImage) && noteMode === NOTE_EXTERNAL ? 'btn-accent' : ''}`}
+                          disabled={working || (!commentText.trim() && !commentImage)}>
                           <Ic.Send size={13} />
                           {working ? 'Gönderiliyor…' : noteMode === NOTE_INTERNAL ? 'Not Ekle' : 'Gönder'}
                         </button>
@@ -597,7 +705,22 @@ export default function AgentTicketDetailPage() {
                     <dd><StatusBadge status={ticket.status} /></dd>
 
                     <dt>Öncelik</dt>
-                    <dd><PriorityBadge priority={ticket.priority} /></dd>
+                    <dd>
+                      {(isAgent || isManager) && ticket.status !== 'CLOSED' ? (
+                        <select
+                          className="select"
+                          style={{ fontSize: 12, padding: '2px 8px', height: 26, fontWeight: 600 }}
+                          value={ticket.priority || ''}
+                          onChange={(e) => handlePriorityChange(e.target.value)}
+                        >
+                          <option value="LOW">Düşük</option>
+                          <option value="MEDIUM">Orta</option>
+                          <option value="HIGH">Yüksek</option>
+                        </select>
+                      ) : (
+                        <PriorityBadge priority={ticket.priority} />
+                      )}
+                    </dd>
 
                     <dt>Atanan</dt>
                     <dd>

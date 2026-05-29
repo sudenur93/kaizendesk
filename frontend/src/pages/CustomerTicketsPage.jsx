@@ -21,6 +21,14 @@ const STATUS_TABS = [
   { key: 'RESOLVED', label: 'Çözüldü' },
 ];
 
+function hasUnread(ticket) {
+  const seen = localStorage.getItem(`kz_seen_${ticket.id}`);
+  if (!seen) return !!ticket.updatedAt; // hiç görülmemiş + güncelleme var
+  const seenTs = new Date(seen).getTime();
+  const updatedTs = ticket.updatedAt ? new Date(ticket.updatedAt).getTime() : 0;
+  return updatedTs > seenTs;
+}
+
 export default function CustomerTicketsPage() {
   const navigate = useNavigate();
   const { search = '' } = useOutletContext() || {};
@@ -220,11 +228,23 @@ export default function CustomerTicketsPage() {
                 filtered.map((t) => {
                   const product = productMap.get(t.productId);
                   return (
-                    <tr key={t.id} onClick={() => navigate(`/customer/tickets/${t.id}`)}>
+                    <tr key={t.id} onClick={() => navigate(`/customer/tickets/${t.id}`)}
+                      style={t.status === 'WAITING_FOR_CUSTOMER' ? { background: 'color-mix(in oklab,#f59e0b 5%,var(--surface))' } : {}}>
                       <td className="id">#{t.id}</td>
                       <td className="ttl">
-                        {t.title}
-                        {product && <span className="lbl"> · {product.name}</span>}
+                        <span className="row" style={{ gap: 8, alignItems: 'center' }}>
+                          <span>
+                            {t.title}
+                            {product && <span className="lbl"> · {product.name}</span>}
+                          </span>
+                          {hasUnread(t) && (
+                            <span style={{
+                              display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
+                              background: t.status === 'WAITING_FOR_CUSTOMER' ? '#f59e0b' : 'var(--accent)',
+                              flexShrink: 0,
+                            }} title="Yeni güncelleme" />
+                          )}
+                        </span>
                       </td>
                       <td>
                         <StatusBadge status={t.status} />

@@ -10,6 +10,16 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+/**
+ * HTML e-posta gönderimini sağlayan servis.
+ *
+ * Gönderim @Async ile arka planda yapılır — ana işlem bloklanmaz.
+ * SMTP ayarları application.yml'dan gelir; geliştirme ortamında MailHog (port 1025) kullanılır.
+ * Gönderim başarısız olursa hata loglanır; exception fırlatılmaz (best-effort).
+ *
+ * E-posta şablonu: KaizenDesk mor başlıklı sade HTML tasarımı.
+ * Tetikleyici: TicketNotificationService.persist() her yeni bildirimde bu servisi çağırır.
+ */
 @Service
 public class EmailService {
 
@@ -26,6 +36,10 @@ public class EmailService {
         this.fromAddress = fromAddress;
     }
 
+    /**
+     * HTML formatında e-posta gönderir.
+     * @Async sayesinde çağıran thread bloklanmaz; ayrı bir thread pool'da çalışır.
+     */
     @Async
     public void send(String to, String subject, String title, String body) {
         try {

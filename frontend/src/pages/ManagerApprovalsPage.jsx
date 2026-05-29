@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Ic from '../components/Icons';
-import { Avatar, EmptyState, getInitials, fmtDate } from '../components/Common';
+import { Avatar, EmptyState, SkeletonTable, getInitials, fmtDate } from '../components/Common';
 import { getPendingUsers, approveUser, rejectUser } from '../services/api';
 import { useOutletContext } from 'react-router-dom';
 
@@ -86,7 +86,7 @@ export default function ManagerApprovalsPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="5" className="muted" style={{ padding: 40, textAlign: 'center' }}>Yükleniyor…</td></tr>
+              <tr><td colSpan="5" style={{ padding: 0 }}><SkeletonTable rows={4} cols={4} /></td></tr>
             ) : users.length === 0 ? (
               <tr><td colSpan="5">
                 <EmptyState type="done" title="Onay bekleyen yok" sub="Tüm kayıt talepleri işlendi." />

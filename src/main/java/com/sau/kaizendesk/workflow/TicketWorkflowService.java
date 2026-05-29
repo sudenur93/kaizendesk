@@ -15,14 +15,22 @@ import org.springframework.stereotype.Service;
 
 /**
  * Ticket yaşam döngüsünü Flowable BPMN engine üzerinden yönetir.
- * Çağrı eden tarafta (TicketService) try/catch ile saralım — engine başarısız olursa
- * ticket akışı yine de kesilmesin (best-effort orkestrasyon).
+ *
+ * BPMN süreci (ticket-flow.bpmn20.xml) akışı:
+ *   start → calculateSla → waitInProgress → gatewayResolved → closeTicket → end
+ *   waitInProgress üzerinde SLA timer: süre dolunca slaBreachDelegate tetiklenir
+ *
+ * Tasarım prensibi: tüm Flowable çağrıları try/catch ile korunur.
+ * BPMN engine arıza yapsa bile ticket iş akışı kesilmez (best-effort orkestrasyon).
+ * Hatalar log.error/warn ile kaydedilir; null dönerek graceful degradation sağlanır.
  */
 @Service
 public class TicketWorkflowService {
 
     private static final Logger log = LoggerFactory.getLogger(TicketWorkflowService.class);
+    /** BPMN dosyasındaki process id — runtimeService.startProcessInstanceByKey() ile eşleşmeli. */
     private static final String PROCESS_KEY = "ticketFlow";
+    /** BPMN'deki receiveTask id — statü değişiminde trigger edilecek bekleme noktası. */
     private static final String WAIT_TASK_ID = "waitInProgress";
 
     private final RuntimeService runtimeService;
@@ -31,7 +39,12 @@ public class TicketWorkflowService {
         this.runtimeService = runtimeService;
     }
 
-    /** Ticket oluşturulduğunda yeni bir process instance başlatır, id'yi döner. */
+    /**
+     * Bilet oluşturulduğunda yeni bir Flowable process instance başlatır.
+     * Process değişkenleri: ticketId, priority, status, slaTargetAt (timer için Date).
+     * Business key "ticket-{id}" formatındadır — Flowable'da tekil tanımlayıcı.
+     * @return processInstanceId (başarısız olursa null)
+     */
     public String startProcess(Ticket ticket) {
         try {
             Map<String, Object> vars = new HashMap<>();
@@ -55,13 +68,17 @@ public class TicketWorkflowService {
         }
     }
 
-    /** Statü değiştiğinde BPMN değişkenini günceller; çözüldü/kapatıldı ise wait state'i tetikler. */
+    /**
+     * Bilet durumu değiştiğinde BPMN sürecini günceller.
+     * Status değişkeni her zaman set edilir; RESOLVED/CLOSED ise waitInProgress receive task'ı
+     * tetiklenerek süreç exclusiveGateway'e ve ardından closeTicket delegate'e ilerler.
+     */
     public void onStatusChanged(String processInstanceId, TicketStatus newStatus) {
         if (processInstanceId == null) return;
         try {
             runtimeService.setVariable(processInstanceId, "status", newStatus.name());
 
-            // RESOLVED veya CLOSED ise receiveTask'ı tetikleyip gateway'e geç
+            // Bilet tamamlandıysa (RESOLVED/CLOSED) bekleme noktasını ilerlet
             if (newStatus == TicketStatus.RESOLVED || newStatus == TicketStatus.CLOSED) {
                 List<Execution> waiting = runtimeService.createExecutionQuery()
                         .processInstanceId(processInstanceId)

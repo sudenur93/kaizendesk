@@ -16,6 +16,32 @@ import {
 
 /** @typedef {'all'|'mine'|'others'|'unassigned'} OwnerScope */
 
+function exportCSV(rows, filename) {
+  const PRIORITY_TR = { HIGH: 'Yüksek', MEDIUM: 'Orta', LOW: 'Düşük' };
+  const STATUS_TR   = { NEW: 'Yeni', IN_PROGRESS: 'İşlemde', WAITING_FOR_CUSTOMER: 'Müşteri Bekliyor', RESOLVED: 'Çözüldü', CLOSED: 'Kapalı' };
+  const headers = ['ID', 'Başlık', 'Durum', 'Öncelik', 'Müşteri', 'Atanan', 'Sistem', 'SLA İhlali', 'Açılış Tarihi'];
+  const escape = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const lines = [
+    headers.join(','),
+    ...rows.map((t) => [
+      t.id,
+      escape(t.title),
+      escape(STATUS_TR[t.status] || t.status),
+      escape(PRIORITY_TR[t.priority] || t.priority),
+      escape(t.createdByUsername),
+      escape(t.assignedAgentName || '—'),
+      escape(t.productName || '—'),
+      t.slaBreached ? 'Evet' : 'Hayır',
+      escape(t.createdAt ? new Date(t.createdAt).toLocaleString('tr-TR') : ''),
+    ].join(',')),
+  ];
+  const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
 const TEAM_COLOR = {
   'IT Destek':      { bg: '#e8f0fe', color: '#1a56db' },
   'Bakım & Arıza':  { bg: '#fde8e8', color: '#c81e1e' },
@@ -385,6 +411,15 @@ export default function AgentTicketsPage() {
                   : `${visibleTickets.length} sonuç · öncelik ve SLA durumuna göre sıralı`}
             </div>
           </div>
+          <button
+            type="button"
+            className="btn btn-sm btn-ghost"
+            onClick={() => exportCSV(visibleTickets, `talepler-${new Date().toISOString().slice(0,10)}.csv`)}
+            disabled={loading || visibleTickets.length === 0}
+            title="Görünümdeki talepleri CSV olarak indir"
+          >
+            ↓ CSV
+          </button>
           <button
             type="button"
             className="btn btn-sm btn-ghost"

@@ -7,9 +7,9 @@ const NAVS = {
   CUSTOMER: {
     label: 'Müşteri Portalı',
     items: [
-      { id: 'c-list', to: '/customer/tickets', label: 'Taleplerim', icon: <Ic.Inbox /> },
-      { id: 'c-new', to: '/customer/tickets/new', label: 'Yeni Talep', icon: <Ic.Plus /> },
-      { id: 'c-archive', to: '/archive', label: 'Arşiv', icon: <Ic.Archive /> },
+      { id: 'c-list',    to: '/customer/tickets',     label: 'Taleplerim', icon: <Ic.Inbox /> },
+      { id: 'c-new',     to: '/customer/tickets/new', label: 'Yeni Talep', icon: <Ic.Plus /> },
+      { id: 'c-archive', to: '/archive',              label: 'Arşiv',      icon: <Ic.Archive /> },
     ],
   },
   AGENT: {

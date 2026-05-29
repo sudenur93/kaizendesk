@@ -1,3 +1,19 @@
+/**
+ * Uygulamanın ana bileşeni — tüm sayfa yönlendirmelerini ve rol tabanlı erişim kontrolünü yönetir.
+ *
+ * Mimari:
+ *   - BrowserRouter ile HTML5 history API tabanlı yönlendirme
+ *   - ProtectedRoute: giriş yapılmamışsa /login'e, yanlış roldeyse /'e yönlendirir
+ *   - RoleRedirect: rol'e göre doğru portale yönlendirir (MANAGER→dashboard, AGENT→tickets, CUSTOMER→tickets)
+ *   - PortalShell tüm korumalı sayfaların ortak layout çerçevesi (Sidebar + Topbar)
+ *
+ * Route hiyerarşisi:
+ *   /login, /register, /forgot-password  → giriş gerektirmez
+ *   /customer/**  → yalnızca CUSTOMER rolü
+ *   /agent/**     → AGENT ve MANAGER rolleri
+ *   /manager/**   → yalnızca MANAGER rolü
+ *   /archive, /settings → tüm roller
+ */
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { getRole, isLoggedIn } from './services/api';
 import PortalShell from './components/PortalShell';
@@ -17,6 +33,11 @@ import ManagerApprovalsPage from './pages/ManagerApprovalsPage';
 import AccountSettingsPage from './pages/AccountSettingsPage';
 import ArchivePage from './pages/ArchivePage';
 
+/**
+ * Korumalı route sarmalayıcısı.
+ * - Giriş yapılmamışsa /login'e yönlendirir
+ * - allowedRoles listesinde kullanıcının rolü yoksa / 'a yönlendirir (RoleRedirect devreye girer)
+ */
 function ProtectedRoute({ children, allowedRoles }) {
   if (!isLoggedIn()) return <Navigate to="/login" replace />;
   const role = getRole();
@@ -24,6 +45,10 @@ function ProtectedRoute({ children, allowedRoles }) {
   return children;
 }
 
+/**
+ * Kullanıcının rolüne göre doğru sayfaya yönlendiren bileşen.
+ * Giriş sonrası veya yetkisiz sayfa erişiminde devreye girer.
+ */
 function RoleRedirect() {
   if (!isLoggedIn()) return <Navigate to="/login" replace />;
   const role = getRole();

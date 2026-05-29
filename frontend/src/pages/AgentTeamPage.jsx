@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Avatar, EmptyState, getInitials } from '../components/Common';
+import { Avatar, EmptyState, Skeleton, SkeletonCard, getInitials } from '../components/Common';
 import { getAgents, getTickets } from '../services/api';
 
 const TEAM_COLOR = {
@@ -72,8 +72,19 @@ export default function AgentTeamPage() {
     return (
       <div className="page">
         <div className="page-narrow">
-          <div className="page-head"><h1 className="page-title">Ekibim</h1></div>
-          <div className="muted" style={{ textAlign: 'center', padding: 40 }}>Yükleniyor…</div>
+          <div className="page-head">
+            <div>
+              <h1 className="page-title">Ekibim</h1>
+              <Skeleton width={160} height={13} style={{ marginTop: 6 }} />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14, marginTop: 8 }}>
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="card card-pad">
+                <SkeletonCard rows={3} />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );

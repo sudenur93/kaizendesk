@@ -10,6 +10,7 @@ import {
   getTicket,
   getTicketComments,
   updateTicketStatus,
+  updateTicketPriority,
 } from '../services/api';
 
 const STATUS_TRANSITIONS = {
@@ -44,6 +45,19 @@ export default function TicketDrawer({ ticketId, onClose, onTicketUpdated }) {
   const [resolveModal,   setResolveModal]   = useState(null);
   const [resolveNote,    setResolveNote]    = useState('');
   const [resolveWorking, setResolveWorking] = useState(false);
+  const [priorityWorking, setPriorityWorking] = useState(false);
+
+  async function handlePriorityChange(newPriority) {
+    if (!ticket || newPriority === ticket.priority) return;
+    setPriorityWorking(true);
+    try {
+      const updated = await updateTicketPriority(ticket.id, newPriority);
+      setTicket(updated);
+      if (onTicketUpdated) onTicketUpdated(updated);
+    } finally {
+      setPriorityWorking(false);
+    }
+  }
 
   const commentsEndRef = useRef(null);
 
@@ -184,7 +198,21 @@ export default function TicketDrawer({ ticketId, onClose, onTicketUpdated }) {
               {/* Badges row */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 12 }}>
                 <StatusBadge status={ticket.status} />
-                <PriorityBadge priority={ticket.priority} />
+                {(isAgent || isManager) && ticket.status !== 'CLOSED' ? (
+                  <select
+                    className="select"
+                    style={{ fontSize: 12, padding: '2px 8px', height: 26, fontWeight: 600 }}
+                    value={ticket.priority || ''}
+                    disabled={priorityWorking}
+                    onChange={(e) => handlePriorityChange(e.target.value)}
+                  >
+                    <option value="LOW">Düşük</option>
+                    <option value="MEDIUM">Orta</option>
+                    <option value="HIGH">Yüksek</option>
+                  </select>
+                ) : (
+                  <PriorityBadge priority={ticket.priority} />
+                )}
                 <div style={{ flex: 1, minWidth: 120 }}>
                   <SlaBar ticket={ticket} />
                 </div>

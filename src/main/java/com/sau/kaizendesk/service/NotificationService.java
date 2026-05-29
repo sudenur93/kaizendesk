@@ -9,6 +9,13 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Kullanıcılara ait bildirimlerin okunmasını sağlar.
+ *
+ * Bildirim üretimi TicketNotificationService tarafından yapılır; bu servis yalnızca sorgular.
+ * Müşteri rolünde: yalnızca kendi oluşturduğu biletlere ait bildirimler döner (gizlilik).
+ * Ajan/Manager rolünde: tüm kendi bildirimleri döner.
+ */
 @Service
 @Transactional(readOnly = true)
 public class NotificationService {

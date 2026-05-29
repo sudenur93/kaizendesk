@@ -7,6 +7,7 @@ import {
 import Ic from '../components/Icons';
 import { Avatar, PriorityBadge, SlaBar, StatusBadge, Skeleton, SkeletonCard, SkeletonTable, fmtDate, getInitials, slaInfo } from '../components/Common';
 import { analyzeDashboard, getDashboardSummary, getRecentActivity, getTickets } from '../services/api';
+import { printDashboardPDF } from '../printPDF';
 
 /* ── ComplianceRing (SVG, sade) ── */
 function ComplianceRing({ pct, size = 130, thickness = 11 }) {
@@ -157,6 +158,7 @@ export default function ManagerDashboardPage() {
   const [aiAnalysis, setAiAnalysis] = useState('');
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
   const [activity, setActivity] = useState([]);
+  const [allTickets, setAllTickets] = useState([]);
 
   const { from, to } = useMemo(() => {
     const t = new Date();
@@ -173,6 +175,7 @@ export default function ManagerDashboardPage() {
       .then(([summary, tickets, acts]) => {
         if (cancelled) return;
         setData(summary);
+        setAllTickets(tickets);
         setActivity(acts);
         const urgent = tickets
           .filter((t) => (t.slaBreached || t.slaAtRisk) && !['RESOLVED', 'CLOSED'].includes(t.status))
@@ -227,7 +230,7 @@ export default function ManagerDashboardPage() {
   }, [data]);
 
   // Anlık SLA — tarih aralığından bağımsız, tüm açık ticketlardan hesapla
-  const liveOpenTickets = tickets.filter((t) => !['RESOLVED', 'CLOSED'].includes(t.status));
+  const liveOpenTickets = allTickets.filter((t) => !['RESOLVED', 'CLOSED'].includes(t.status));
   const liveBreached   = liveOpenTickets.filter((t) => t.slaBreached).length;
   const liveInTarget   = liveOpenTickets.filter((t) => !t.slaBreached).length;
   const liveSlaRate    = liveOpenTickets.length > 0
@@ -260,6 +263,22 @@ export default function ManagerDashboardPage() {
           </div>
           <button type="button" className="btn btn-sm btn-ghost" onClick={() => setRangeDays(rangeDays)}>
             <Ic.Refresh size={13} /> Yenile
+          </button>
+          <button
+            type="button"
+            className="btn btn-sm btn-ghost"
+            disabled={loading || !data}
+            onClick={() => printDashboardPDF({
+              data,
+              rangeDays,
+              liveSlaRate,
+              liveBreached,
+              liveInTarget,
+              agentStats: data?.agentPerformances,
+            })}
+            title="Dashboard özetini PDF olarak indir"
+          >
+            ↓ PDF
           </button>
           <button
             type="button"

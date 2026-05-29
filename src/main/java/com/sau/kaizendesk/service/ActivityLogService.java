@@ -11,6 +11,16 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Sistem olaylarını denetim kaydı (audit log) olarak saklar.
+ *
+ * TicketService, CommentService vb. tarafından iş işleminin içinde çağrılır.
+ * Propagation.REQUIRED kullanılır: çağıran işlem içindeyse onunla birleşir,
+ * dışarıdaysa yeni bir işlem başlatır.
+ *
+ * ticketNo ve ticketTitle bilet referansından bağımsız olarak kopyalanır;
+ * böylece bilet silinse bile geçmiş aktiviteler okunabilir kalır.
+ */
 @Service
 public class ActivityLogService {
 
@@ -20,7 +30,15 @@ public class ActivityLogService {
         this.repo = repo;
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    /**
+     * Bir sistem olayını kaydeder.
+     *
+     * @param eventType olayın tipi (TICKET_CREATED, STATUS_CHANGED vb.)
+     * @param actor     işlemi yapan kullanıcının username'i
+     * @param ticket    ilgili bilet (null olabilir)
+     * @param detail    ek açıklama (örn. "IN_PROGRESS → RESOLVED")
+     */
+    @Transactional(propagation = Propagation.REQUIRED)
     public void log(String eventType, String actor, Ticket ticket, String detail) {
         ActivityLog log = new ActivityLog();
         log.setEventType(eventType);

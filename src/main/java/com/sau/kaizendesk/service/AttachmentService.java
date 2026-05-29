@@ -23,6 +23,18 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+/**
+ * Bilet dosya ekleri için yükleme, listeleme ve indirme işlemlerini yönetir.
+ *
+ * Güvenlik katmanları:
+ *   1. TicketAccessService → müşteri yalnızca kendi biletine dosya ekleyebilir
+ *   2. AttachmentMimeRules → MIME tipi ve maksimum boyut denetimi
+ *   3. UUID dosya adı     → orijinal isim diskte kullanılmaz (path traversal önlemi)
+ *
+ * Metin dosyaları (.txt, .log vb.) yüklendiğinde içerik otomatik taranır;
+ * tespit edilen log anahtar kelimeleri (ERROR, EXCEPTION, FATAL vb.)
+ * Attachment.detectedLogKeywords alanına kaydedilir.
+ */
 @Service
 @Transactional(readOnly = true)
 public class AttachmentService {

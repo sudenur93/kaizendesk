@@ -10,6 +10,18 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
 
+/**
+ * Kullanıcıya iletilen sistem bildirimi.
+ *
+ * TicketNotificationService tarafından üretilir; aynı zamanda e-posta da gönderilir.
+ * Bildirim tipleri (type alanı):
+ *   TICKET_CREATED      → bilet oluşturuldu
+ *   STATUS_CHANGED      → bilet durumu değişti
+ *   TICKET_ASSIGNED     → bilet bir ajana atandı
+ *   SLA_AT_RISK         → SLA süresinin %25'i ya da 30 dk'sı kaldı
+ *   SLA_BREACHED        → SLA süresi aşıldı
+ *   CUSTOMER_COMMENT    → müşteri yoruma yanıt verdi
+ */
 @Entity
 @Table(name = "notifications")
 public class Notification {
@@ -18,27 +30,40 @@ public class Notification {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** Bildirimi alacak kullanıcı. Kullanıcı silinirse kayıt da silinir (ON DELETE CASCADE). */
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;
 
+    /**
+     * Bildirimin ilgili olduğu bilet.
+     * Bilet silinirse bu alan null yapılır (ON DELETE SET NULL); bildirim kaydı korunur.
+     */
     @ManyToOne
     @JoinColumn(name = "ticket_id")
     private Ticket ticket;
 
+    /** Bildirim kategorisi. Arayüzde ikon ve renk seçimi için kullanılır. */
     @Column(nullable = false, length = 50)
     private String type;
 
+    /** Kısa başlık — bildirim listesinde gösterilir (örn. "Talep oluşturuldu"). */
     @Column(nullable = false)
     private String title;
 
+    /** Ayrıntılı mesaj içeriği. E-posta gövdesinde de kullanılır. */
     @Column(nullable = false, columnDefinition = "TEXT")
     private String message;
 
+    /** Bildirimin oluşturulma zamanı. */
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
-    // Flyway şemasında is_read olarak geçiyor
+    /**
+     * Okundu bayrağı.
+     * Veritabanı sütunu "is_read" — Flyway V1__init.sql ile oluşturulmuştur.
+     * Kullanıcı bildirimi açtığında NotificationController.markRead() ile true yapılır.
+     */
     @Column(name = "is_read", nullable = false)
     private boolean read;
 

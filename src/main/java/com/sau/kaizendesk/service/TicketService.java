@@ -28,11 +28,23 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Bilet yönetiminin tüm iş kurallarını barındıran merkezi servis.
+ *
+ * Temel sorumluluklar:
+ *  - Bilet oluşturma: ürün/kategori/sorun tipi tutarlılık kontrolü, SLA hesabı, BPMN süreci başlatma
+ *  - Durum geçişi: izin verilen state machine geçişleri (isAllowedTransition)
+ *  - Ajan atama: ajan sadece kendi üzerine alabilir; manager herkese atayabilir
+ *  - Müşteri aksiyonu: RESOLVED → CLOSED (onay) veya RESOLVED → IN_PROGRESS (yeniden aç)
+ *  - Filtreleme: status, priority, assignedTo, username, fulltext arama (q)
+ *
+ * @Transactional(readOnly = true) varsayılan; yazma işlemlerine @Transactional eklenir.
+ */
 @Service
 @Transactional(readOnly = true)
 public class TicketService {
 
-    /** Önce yüksek öncelik, aynı öncelikte yeniden eskiye (createdAt). */
+    /** Liste sıralaması: yüksek öncelik önce, aynı öncelikte en yeni önce. */
     private static final Comparator<Ticket> TICKET_LIST_ORDER =
             Comparator.comparing(Ticket::getPriority)
                     .reversed()
@@ -70,6 +82,18 @@ public class TicketService {
         this.activityLogService = activityLogService;
     }
 
+    /**
+     * Yeni bir destek talebi oluşturur.
+     *
+     * Adımlar:
+     *  1. Kullanıcı varlığını doğrular
+     *  2. Ürün ve kategorinin tutarlı olduğunu kontrol eder
+     *  3. Seçilen sorun tiplerinin kategoriye ait ve aktif olduğunu doğrular
+     *  4. Bileti kaydeder, SLA hedefini hesaplar
+     *  5. Flowable BPMN sürecini başlatır (processInstanceId atanır)
+     *  6. Oluşturulma bildirimi ve SLA risk bildirimi tetiklenir
+     *  7. Aktivite logu yazılır
+     */
     @Transactional
     public TicketResponse createTicket(CreateTicketRequest request, String username) {
         User user = userRepository.findByUsername(username)
@@ -79,6 +103,7 @@ public class TicketService {
                 .orElseThrow(() -> new IllegalArgumentException("Product not found: " + request.getProductId()));
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new IllegalArgumentException("Category not found: " + request.getCategoryId()));
+        // Seçilen kategorinin, seçilen ürüne ait olduğunu doğrula
         if (category.getProduct() == null || !category.getProduct().getId().equals(product.getId())) {
             throw new IllegalArgumentException("Category does not belong to selected product");
         }
@@ -224,6 +249,16 @@ public class TicketService {
         return mapToResponse(saved);
     }
 
+    /**
+     * İzin verilen durum geçişlerini tanımlayan state machine kuralları.
+     * Yasak bir geçiş denenirse updateStatus() IllegalArgumentException fırlatır.
+     *
+     *   NEW                → IN_PROGRESS                      (ajan bileti alır)
+     *   IN_PROGRESS        → WAITING_FOR_CUSTOMER | RESOLVED  (müşteri yanıtı bekleniyor veya çözüldü)
+     *   WAITING_FOR_CUSTOMER → IN_PROGRESS | RESOLVED         (müşteri yanıtladı veya yine de çözüldü)
+     *   RESOLVED           → CLOSED                           (müşteri onayla ya da ajan kapat)
+     *   CLOSED             → (hiçbir geçiş yok)               (terminal durum)
+     */
     private static boolean isAllowedTransition(TicketStatus from, TicketStatus to) {
         return switch (from) {
             case NEW -> to == TicketStatus.IN_PROGRESS;
@@ -286,6 +321,64 @@ public class TicketService {
         ticketNotificationService.maybeNotifySlaAtRisk(updatedTicket, now);
         activityLogService.log("AGENT_ASSIGNED", actorUsername, updatedTicket, agent.getUsername());
         return mapToResponse(updatedTicket);
+    }
+
+    @Transactional
+    public void deleteTicket(Long ticketId, String username) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new IllegalArgumentException("Ticket bulunamadı: " + ticketId));
+        if (ticket.getCreatedBy() == null || !ticket.getCreatedBy().getUsername().equals(username)) {
+            throw new SecurityException("Bu talebi silme yetkiniz yok.");
+        }
+        if (ticket.getStatus() != TicketStatus.NEW) {
+            throw new IllegalStateException("Sadece 'Yeni' durumundaki talepler silinebilir.");
+        }
+        ticketRepository.deleteById(ticketId);
+    }
+
+    /**
+     * Müşterinin "Çözümü Onayla" (confirm) veya "Yeniden Aç" (reopen) aksiyonları.
+     * confirm : RESOLVED → CLOSED  (müşteri sorununun çözüldüğünü onaylar)
+     * reopen  : RESOLVED → IN_PROGRESS  (müşteri sorunun hâlâ devam ettiğini bildirir)
+     */
+    @Transactional
+    public TicketResponse customerAction(Long ticketId, String action, String username) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new IllegalArgumentException("Ticket bulunamadı: " + ticketId));
+        if (ticket.getCreatedBy() == null || !ticket.getCreatedBy().getUsername().equals(username)) {
+            throw new SecurityException("Bu talep üzerinde işlem yapma yetkiniz yok.");
+        }
+        if (ticket.getStatus() != TicketStatus.RESOLVED) {
+            throw new IllegalStateException("Bu aksiyon yalnızca 'Çözüldü' durumundaki talepler için geçerlidir.");
+        }
+        Instant now = Instant.now();
+        TicketStatus from = ticket.getStatus();
+        if ("confirm".equals(action)) {
+            ticket.setStatus(TicketStatus.CLOSED);
+            ticket.setClosedAt(now);
+            activityLogService.log("STATUS_CHANGED", username, ticket, "RESOLVED → CLOSED (müşteri onayı)");
+        } else if ("reopen".equals(action)) {
+            ticket.setStatus(TicketStatus.IN_PROGRESS);
+            activityLogService.log("STATUS_CHANGED", username, ticket, "RESOLVED → IN_PROGRESS (müşteri yeniden açtı)");
+        } else {
+            throw new IllegalArgumentException("Geçersiz aksiyon: " + action);
+        }
+        ticket.setUpdatedAt(now);
+        Ticket saved = ticketRepository.save(ticket);
+        ticketNotificationService.onStatusChanged(saved, from, saved.getStatus());
+        return mapToResponse(saved);
+    }
+
+    @Transactional
+    public TicketResponse updatePriority(Long ticketId, TicketPriority newPriority, String actor) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new IllegalArgumentException("Ticket bulunamadı: " + ticketId));
+        // slaTargetAt değiştirilmez — müşterinin belirlediği orijinal süre korunur
+        ticket.setPriority(newPriority);
+        ticket.setUpdatedAt(Instant.now());
+        Ticket saved = ticketRepository.save(ticket);
+        activityLogService.log("PRIORITY_CHANGED", actor, saved, newPriority.name());
+        return mapToResponse(saved);
     }
 
     private void syncSlaBreachedFlag(Ticket ticket, Instant now) {
@@ -376,6 +469,10 @@ public class TicketService {
         return from.plus(minutes, ChronoUnit.MINUTES);
     }
 
+    /**
+     * SLA hedef süresini (dakika) belirler.
+     * Önce veritabanındaki sla_policies tablosuna bakılır; kayıt yoksa fallback değerleri kullanılır.
+     */
     private long resolveTargetMinutes(TicketPriority priority) {
         if (priority != null) {
             var policy = slaPolicyRepository.findByPriority(priority);
@@ -386,6 +483,12 @@ public class TicketService {
         return fallbackTargetMinutes(priority);
     }
 
+    /**
+     * DB'de SLA politikası tanımlı değilse kullanılan varsayılan süreler:
+     *   HIGH     →  240 dk  (4 saat)
+     *   MEDIUM   →  480 dk  (8 saat)
+     *   LOW      → 1440 dk  (24 saat)
+     */
     private static long fallbackTargetMinutes(TicketPriority priority) {
         if (priority == null) {
             return 480;

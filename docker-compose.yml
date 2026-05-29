@@ -198,6 +198,18 @@ services:
         condition: service_started
     restart: unless-stopped
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: kaizendesk-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+      - keycloak
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   opensearch_data:

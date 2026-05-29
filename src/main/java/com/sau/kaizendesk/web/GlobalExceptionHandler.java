@@ -18,8 +18,19 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 /**
- * Validation vb. Spring MVC istisnaları için {@link ResponseEntityExceptionHandler} kullanılır;
- * aksi halde bazı ortamlarda varsayılan {@code /error} gövdesi (path alanı ile) dönebiliyor.
+ * Uygulama genelinde tüm controller hatalarını standart JSON formatına dönüştüren merkezi hata yöneticisi.
+ *
+ * Yakalanan exception türleri ve HTTP yanıtları:
+ *   MethodArgumentNotValidException  → 400 + alan bazlı hata mesajları (fieldErrors)
+ *   ResponseStatusException          → HTTP kodu korunur
+ *   AccessDeniedException            → 403 Forbidden
+ *   IllegalStateException            → 500 Internal Server Error
+ *   IllegalArgumentException         → 404 Not Found (mesajda "not found/bulunamadı" varsa) veya 400 Bad Request
+ *   Exception (diğer tüm hatalar)    → 500 Internal Server Error
+ *
+ * ResponseEntityExceptionHandler uzatılır: Spring MVC'nin kendi validation exception'larının
+ * /error yolu yerine bu sınıf tarafından formatlanmasını sağlar.
+ * @Order(HIGHEST_PRECEDENCE) ile diğer handler'lardan önce çalışır.
  */
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice
@@ -76,6 +87,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
 	}
 
+	/**
+	 * IllegalArgumentException: mesaj içeriğine göre 404 veya 400 döner.
+	 * Servis katmanında "not found" veya "bulunamadı" içeren mesajlar kaynak bulunamadı olarak işaretlenir.
+	 */
 	@ExceptionHandler(IllegalArgumentException.class)
 	public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
 		String msg = ex.getMessage() != null ? ex.getMessage() : "Geçersiz istek";

@@ -10,6 +10,15 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
 
+/**
+ * Bir bilete eklenen yorum kaydı.
+ *
+ * İki tip yorum desteklenir:
+ *   EXTERNAL  → müşteri ve ajan arasındaki görünür yazışma (varsayılan)
+ *   INTERNAL  → sadece ajanlar ve managerlar tarafından görülen dahili not
+ *
+ * isInternal() kolaylık metodu, type=="INTERNAL" kontrolünü soyutlar.
+ */
 @Entity
 @Table(name = "comments")
 public class Comment {
@@ -18,20 +27,29 @@ public class Comment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** Yorum metni. Maksimum 1000 karakter. */
     @Column(name = "content", nullable = false, length = 1000)
     private String message;
 
+    /**
+     * Yorumun görünürlük tipi.
+     *   "EXTERNAL" → müşteri de görebilir
+     *   "INTERNAL" → yalnızca ajan/manager görebilir (dahili not)
+     */
     @Column(name = "type", nullable = false, length = 30)
     private String type = "EXTERNAL";
 
+    /** Yorumun ait olduğu bilet. Bilet silinirse yorum da silinir (ON DELETE CASCADE). */
     @ManyToOne
     @JoinColumn(name = "ticket_id")
     private Ticket ticket;
 
+    /** Yorumu yazan kullanıcı. */
     @ManyToOne
     @JoinColumn(name = "author_id")
     private User user;
 
+    /** Yorumun yazıldığı zaman. */
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
