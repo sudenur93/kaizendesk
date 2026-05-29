@@ -1,0 +1,87 @@
+spring:
+  application:
+    name: kaizendesk-api
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 12MB
+  datasource:
+    url: jdbc:postgresql://postgres:5432/kaizendesk
+    username: kaizen_user
+    password: kaizen_pass
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Dev: token'ı genelde host üzerinden aldığımız için issuer buna göre olmalı
+          issuer-uri: http://localhost:8081/realms/kaizendesk
+          # API container içinden JWKS'e Keycloak servis adıyla eriş
+          jwk-set-uri: http://keycloak:8080/realms/kaizendesk/protocol/openid-connect/certs
+
+  mail:
+    host: ${SMTP_HOST:smtp.gmail.com}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${SMTP_AUTH:true}
+      mail.smtp.starttls.enable: ${SMTP_STARTTLS:true}
+      mail.smtp.starttls.required: ${SMTP_STARTTLS:true}
+
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+
+kaizendesk:
+  attachments:
+    directory: ${KAIZENDESK_ATTACHMENTS_DIR:./data/attachments}
+    max-file-size-bytes: 10485760
+  mail:
+    from: ${SMTP_FROM:no-reply@kaizendesk.local}
+
+# Flowable BPMN engine — process instance'ları aynı PostgreSQL'de ACT_* tablolarında tutulur
+flowable:
+  database-schema-update: true
+  async-executor-activate: true
+  history-level: audit
+  process-definition-location-prefix: classpath*:/processes/
+  process-definition-location-suffixes:
+    - "**.bpmn"
+    - "**.bpmn20.xml"
+  # Mevcut Flyway migration'ları ile çakışmaması için Flowable kendi tablolarını kendisi oluşturur
+  check-process-definitions: true
+
+server:
+  port: 8081
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: http://otel-collector:4318/v1/traces
+
+logging:
+  level:
+    org.springframework.security: INFO
+    org.hibernate.SQL: INFO

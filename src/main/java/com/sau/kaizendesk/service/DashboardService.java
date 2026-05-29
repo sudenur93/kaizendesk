@@ -1,0 +1,193 @@
+package com.sau.kaizendesk.service;
+
+import com.sau.kaizendesk.domain.entity.Ticket;
+import com.sau.kaizendesk.domain.enums.TicketStatus;
+import com.sau.kaizendesk.dto.DashboardSummaryResponse;
+import com.sau.kaizendesk.dto.DashboardSummaryResponse.AgentPerformance;
+import com.sau.kaizendesk.dto.DashboardSummaryResponse.DailyCount;
+import com.sau.kaizendesk.repository.TicketRepository;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@Transactional(readOnly = true)
+public class DashboardService {
+
+    private final TicketRepository ticketRepository;
+
+    public DashboardService(TicketRepository ticketRepository) {
+        this.ticketRepository = ticketRepository;
+    }
+
+    private static final Set<TicketStatus> DONE_STATUSES =
+            Set.of(TicketStatus.RESOLVED, TicketStatus.CLOSED);
+
+    public DashboardSummaryResponse getSummary(LocalDate from, LocalDate to) {
+        List<Ticket> all = ticketRepository.findAll();
+
+        DashboardSummaryResponse resp = new DashboardSummaryResponse();
+
+        resp.setTotalTickets(all.size());
+
+        long newCount = countByStatus(all, TicketStatus.NEW);
+        long inProgress = countByStatus(all, TicketStatus.IN_PROGRESS);
+        long waiting = countByStatus(all, TicketStatus.WAITING_FOR_CUSTOMER);
+        long resolved = countByStatus(all, TicketStatus.RESOLVED);
+        long closed = countByStatus(all, TicketStatus.CLOSED);
+
+        resp.setOpenTickets(newCount);
+        resp.setInProgressTickets(inProgress);
+        resp.setWaitingForCustomerTickets(waiting);
+        resp.setResolvedTickets(resolved);
+        resp.setClosedTickets(closed);
+
+        Map<String, Long> statusCounts = new LinkedHashMap<>();
+        statusCounts.put("NEW", newCount);
+        statusCounts.put("IN_PROGRESS", inProgress);
+        statusCounts.put("WAITING_FOR_CUSTOMER", waiting);
+        statusCounts.put("RESOLVED", resolved);
+        statusCounts.put("CLOSED", closed);
+        resp.setStatusCounts(statusCounts);
+
+        Map<String, Long> priorityCounts = all.stream()
+                .collect(Collectors.groupingBy(
+                        t -> t.getPriority().name(),
+                        LinkedHashMap::new,
+                        Collectors.counting()));
+        resp.setPriorityCounts(priorityCounts);
+
+        Map<String, Long> productCounts = all.stream()
+                .filter(t -> t.getProduct() != null)
+                .collect(Collectors.groupingBy(
+                        t -> t.getProduct().getName(),
+                        LinkedHashMap::new,
+                        Collectors.counting()));
+        resp.setProductCounts(productCounts);
+
+        Instant now = Instant.now();
+        Instant rangeStartInst = from != null ? from.atStartOfDay().toInstant(ZoneOffset.UTC) : null;
+        Instant rangeEndInst   = to   != null ? to.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC) : null;
+
+        // Seçili aralıkta çözülen ticket'lara göre SLA uyumu
+        List<Ticket> doneInRange = all.stream()
+                .filter(t -> DONE_STATUSES.contains(t.getStatus()))
+                .filter(t -> {
+                    Instant completed = t.getResolvedAt() != null ? t.getResolvedAt() : t.getClosedAt();
+                    if (completed == null) return false;
+                    if (rangeStartInst != null && completed.isBefore(rangeStartInst)) return false;
+                    if (rangeEndInst   != null && !completed.isBefore(rangeEndInst))  return false;
+                    return true;
+                })
+                .toList();
+
+        long slaBreached = all.stream().filter(t -> SlaEvaluator.isBreached(t, now)).count();
+        resp.setSlaBreachedCount(slaBreached);
+
+        long doneTotal = doneInRange.size();
+        long doneAndNotBreached = doneInRange.stream()
+                .filter(t -> !SlaEvaluator.isBreached(t, now))
+                .count();
+        resp.setSlaInTargetCount(doneAndNotBreached);
+        resp.setSlaComplianceRate(doneTotal == 0 ? 100.0 : Math.round(doneAndNotBreached * 1000.0 / doneTotal) / 10.0);
+
+        Instant startOfToday = LocalDate.now(ZoneOffset.UTC).atStartOfDay().toInstant(ZoneOffset.UTC);
+        long closedToday = all.stream()
+                .filter(t -> t.getClosedAt() != null && t.getClosedAt().isAfter(startOfToday))
+                .count();
+        resp.setClosedToday(closedToday);
+
+        Instant rangeStart = from != null ? from.atStartOfDay().toInstant(ZoneOffset.UTC) : null;
+        Instant rangeEnd = to != null ? to.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC) : null;
+        long closedInRange = all.stream()
+                .filter(t -> t.getClosedAt() != null)
+                .filter(t -> rangeStart == null || !t.getClosedAt().isBefore(rangeStart))
+                .filter(t -> rangeEnd == null || t.getClosedAt().isBefore(rangeEnd))
+                .count();
+        resp.setClosedInRange(closedInRange);
+
+        all.stream()
+                .filter(t -> t.getResolvedAt() != null)
+                .mapToLong(t -> java.time.Duration.between(t.getCreatedAt(), t.getResolvedAt()).toMinutes())
+                .average()
+                .ifPresentOrElse(
+                        avg -> resp.setAvgResolutionMinutes(Math.round(avg)),
+                        () -> resp.setAvgResolutionMinutes(null));
+
+        resp.setAgentPerformances(buildAgentPerformances(all));
+        resp.setDailyCreatedCounts(dailyCounts(all, 14, Ticket::getCreatedAt));
+        resp.setDailyClosedCounts(dailyCounts(all, 14, Ticket::getResolvedAt));
+
+        return resp;
+    }
+
+    private List<DailyCount> dailyCounts(List<Ticket> all, int days, Function<Ticket, Instant> dateOf) {
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        List<DailyCount> result = new ArrayList<>(days);
+        for (int i = days - 1; i >= 0; i--) {
+            LocalDate day = today.minusDays(i);
+            Instant start = day.atStartOfDay().toInstant(ZoneOffset.UTC);
+            Instant end = day.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+            long count = all.stream()
+                    .filter(t -> dateOf.apply(t) != null)
+                    .filter(t -> !dateOf.apply(t).isBefore(start) && dateOf.apply(t).isBefore(end))
+                    .count();
+            DailyCount dc = new DailyCount();
+            dc.setDate(day.toString());
+            dc.setCount(count);
+            result.add(dc);
+        }
+        return result;
+    }
+
+    private long countByStatus(List<Ticket> tickets, TicketStatus status) {
+        return tickets.stream().filter(t -> t.getStatus() == status).count();
+    }
+
+    private List<AgentPerformance> buildAgentPerformances(List<Ticket> all) {
+        Map<Long, List<Ticket>> byAgent = all.stream()
+                .filter(t -> t.getAssignedAgent() != null)
+                .collect(Collectors.groupingBy(t -> t.getAssignedAgent().getId()));
+
+        List<AgentPerformance> result = new ArrayList<>();
+        for (var entry : byAgent.entrySet()) {
+            List<Ticket> tickets = entry.getValue();
+            Ticket sample = tickets.get(0);
+
+            AgentPerformance ap = new AgentPerformance();
+            ap.setAgentId(entry.getKey());
+            ap.setAgentName(sample.getAssignedAgent().getName());
+            ap.setAssignedCount(tickets.size());
+
+            long resolvedOrClosed = tickets.stream()
+                    .filter(t -> t.getStatus() == TicketStatus.RESOLVED || t.getStatus() == TicketStatus.CLOSED)
+                    .count();
+            ap.setResolvedCount(resolvedOrClosed);
+
+            long closedCount = tickets.stream()
+                    .filter(t -> t.getStatus() == TicketStatus.CLOSED)
+                    .count();
+            ap.setClosedCount(closedCount);
+
+            tickets.stream()
+                    .filter(t -> t.getResolvedAt() != null)
+                    .mapToLong(t -> java.time.Duration.between(t.getCreatedAt(), t.getResolvedAt()).toMinutes())
+                    .average()
+                    .ifPresentOrElse(
+                            avg -> ap.setAvgResolutionMinutes(Math.round(avg)),
+                            () -> ap.setAvgResolutionMinutes(null));
+
+            result.add(ap);
+        }
+        return result;
+    }
+}

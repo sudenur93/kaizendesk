@@ -1,0 +1,305 @@
+{
+  "realm": "kaizendesk",
+  "enabled": true,
+  "sslRequired": "none",
+  "accessTokenLifespan": 3600,
+  "registrationAllowed": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "rememberMe": true,
+  "browserFlow": "browser-otp",
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA1",
+  "otpPolicyInitialCounter": 0,
+  "otpPolicyDigits": 6,
+  "otpPolicyLookAheadWindow": 1,
+  "otpPolicyPeriod": 30,
+  "otpSupportedApplications": [
+    "totpAppGoogleName",
+    "totpAppFreeOTPName",
+    "totpAppMicrosoftAuthenticatorName"
+  ],
+  "roles": {
+    "realm": [
+      { "name": "CUSTOMER", "composite": false },
+      { "name": "AGENT",    "composite": false },
+      { "name": "MANAGER",  "composite": false },
+      {
+        "name": "default-roles-kaizendesk",
+        "composite": true,
+        "composites": {
+          "realm": ["CUSTOMER"]
+        }
+      }
+    ]
+  },
+  "defaultRole": {
+    "name": "default-roles-kaizendesk",
+    "composite": true,
+    "composites": {
+      "realm": ["CUSTOMER"]
+    }
+  },
+  "authenticationFlows": [
+    {
+      "alias": "browser-otp",
+      "description": "Browser based authentication with conditional OTP (2FA)",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "auth-cookie",
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "autheticatorFlow": false
+        },
+        {
+          "authenticator": "auth-spnego",
+          "requirement": "DISABLED",
+          "priority": 20,
+          "autheticatorFlow": false
+        },
+        {
+          "authenticator": "identity-provider-redirector",
+          "requirement": "ALTERNATIVE",
+          "priority": 25,
+          "autheticatorFlow": false
+        },
+        {
+          "flowAlias": "browser-otp-forms",
+          "requirement": "ALTERNATIVE",
+          "priority": 30,
+          "autheticatorFlow": true
+        }
+      ]
+    },
+    {
+      "alias": "browser-otp-forms",
+      "description": "Kullanici adi, sifre ve kosullu OTP formlari",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "auth-username-password-form",
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "autheticatorFlow": false
+        },
+        {
+          "flowAlias": "browser-otp-conditional",
+          "requirement": "CONDITIONAL",
+          "priority": 20,
+          "autheticatorFlow": true
+        }
+      ]
+    },
+    {
+      "alias": "browser-otp-conditional",
+      "description": "OTP sadece kullanici yapılandırdıysa istenir",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-user-configured",
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "autheticatorFlow": false
+        },
+        {
+          "authenticator": "auth-otp-form",
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "autheticatorFlow": false
+        }
+      ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "kaizendesk-app",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "redirectUris": ["*"],
+      "webOrigins": ["*"],
+      "protocolMappers": [
+        {
+          "name": "roles-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "audience-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "account",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "customer1",
+      "email": "customer1@kaizendesk.demo",
+      "firstName": "Ali",
+      "lastName": "Yılmaz",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["CUSTOMER"],
+      "credentials": [{ "type": "password", "value": "customer123", "temporary": false }]
+    },
+    {
+      "username": "customer2",
+      "email": "customer2@kaizendesk.demo",
+      "firstName": "Ayşe",
+      "lastName": "Kaya",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["CUSTOMER"],
+      "credentials": [{ "type": "password", "value": "customer123", "temporary": false }]
+    },
+    {
+      "username": "agent1",
+      "email": "agent1@kaizendesk.demo",
+      "firstName": "Mehmet",
+      "lastName": "Demir",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["AGENT"],
+      "credentials": [{ "type": "password", "value": "agent123", "temporary": false }]
+    },
+    {
+      "username": "sude3",
+      "email": "sude3@test.com",
+      "firstName": "Sude",
+      "lastName": "Üç",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["AGENT"],
+      "credentials": [{ "type": "password", "value": "agent123", "temporary": false }]
+    },
+    {
+      "username": "agent2",
+      "email": "agent2@kaizendesk.demo",
+      "firstName": "Can",
+      "lastName": "Yıldız",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["AGENT"],
+      "credentials": [{ "type": "password", "value": "agent123", "temporary": false }]
+    },
+    {
+      "username": "manager",
+      "email": "manager@kaizendesk.demo",
+      "firstName": "Fatma",
+      "lastName": "Şahin",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["MANAGER"],
+      "credentials": [{ "type": "password", "value": "manager123", "temporary": false }]
+    }
+  ],
+  "components": {
+    "org.keycloak.storage.UserStorageProvider": [
+      {
+        "id": "ldap-federation-kaizendesk",
+        "name": "openldap",
+        "providerId": "ldap",
+        "subComponents": {
+          "org.keycloak.storage.ldap.mappers.LDAPStorageMapper": [
+            {
+              "name": "username",
+              "providerId": "user-attribute-ldap-mapper",
+              "config": {
+                "ldap.attribute": ["uid"],
+                "user.model.attribute": ["username"],
+                "read.only": ["true"],
+                "always.read.value.from.ldap": ["false"],
+                "is.mandatory.in.ldap": ["true"]
+              }
+            },
+            {
+              "name": "email",
+              "providerId": "user-attribute-ldap-mapper",
+              "config": {
+                "ldap.attribute": ["mail"],
+                "user.model.attribute": ["email"],
+                "read.only": ["false"],
+                "always.read.value.from.ldap": ["false"],
+                "is.mandatory.in.ldap": ["false"]
+              }
+            },
+            {
+              "name": "first name",
+              "providerId": "user-attribute-ldap-mapper",
+              "config": {
+                "ldap.attribute": ["cn"],
+                "user.model.attribute": ["firstName"],
+                "read.only": ["false"],
+                "always.read.value.from.ldap": ["true"],
+                "is.mandatory.in.ldap": ["true"]
+              }
+            },
+            {
+              "name": "last name",
+              "providerId": "user-attribute-ldap-mapper",
+              "config": {
+                "ldap.attribute": ["sn"],
+                "user.model.attribute": ["lastName"],
+                "read.only": ["false"],
+                "always.read.value.from.ldap": ["true"],
+                "is.mandatory.in.ldap": ["true"]
+              }
+            }
+          ]
+        },
+        "config": {
+          "enabled": ["true"],
+          "priority": ["0"],
+          "fullSyncPeriod": ["-1"],
+          "changedSyncPeriod": ["-1"],
+          "cachePolicy": ["DEFAULT"],
+          "batchSizeForSync": ["1000"],
+          "editMode": ["WRITABLE"],
+          "importEnabled": ["true"],
+          "syncRegistrations": ["true"],
+          "vendor": ["other"],
+          "usernameLDAPAttribute": ["uid"],
+          "rdnLDAPAttribute": ["uid"],
+          "uuidLDAPAttribute": ["entryUUID"],
+          "userObjectClasses": ["inetOrgPerson, organizationalPerson"],
+          "connectionUrl": ["ldap://openldap:389"],
+          "usersDn": ["ou=users,dc=kaizendesk,dc=demo"],
+          "authType": ["simple"],
+          "startTls": ["false"],
+          "bindDn": ["cn=admin,dc=kaizendesk,dc=demo"],
+          "bindCredential": ["admin"],
+          "searchScope": ["1"],
+          "pagination": ["true"],
+          "connectionPooling": ["true"],
+          "allowKerberosAuthentication": ["false"],
+          "debug": ["false"],
+          "useKerberosForPasswordAuthentication": ["false"]
+        }
+      }
+    ]
+  }
+}

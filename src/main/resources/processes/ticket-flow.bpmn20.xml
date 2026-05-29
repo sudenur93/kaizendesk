@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             id="Definitions_TicketFlow"
+             targetNamespace="http://kaizendesk.sau.com/bpmn"
+             exporter="KaizenDesk"
+             exporterVersion="1.0">
+
+  <process id="ticketFlow" name="KaizenDesk Ticket Süreci" isExecutable="true">
+
+    <!-- Süreç değişkenleri:
+         ticketId       : Long
+         priority       : String (HIGH/MEDIUM/LOW)
+         slaBreached    : Boolean
+         status         : String (NEW/IN_PROGRESS/WAITING_FOR_CUSTOMER/RESOLVED/CLOSED)
+    -->
+
+    <startEvent id="start" name="Ticket Oluşturuldu"/>
+    <sequenceFlow id="f1" sourceRef="start" targetRef="calculateSla"/>
+
+    <!-- 1. SLA hesapla (Java delegate Spring bean) -->
+    <serviceTask id="calculateSla"
+                 name="SLA Hedefini Hesapla"
+                 flowable:delegateExpression="${slaCalculationDelegate}"/>
+    <sequenceFlow id="f2" sourceRef="calculateSla" targetRef="waitInProgress"/>
+
+    <!-- 2. Ticket atanması/işlenmesini bekle -->
+    <receiveTask id="waitInProgress" name="İşlemde Bekle (Atama / Çözüm)"/>
+    <sequenceFlow id="f3" sourceRef="waitInProgress" targetRef="gatewayResolved"/>
+
+    <!-- Bu sırada SLA timer aktif: süre dolduğunda interrupting boundary event tetiklenir -->
+    <boundaryEvent id="slaTimer" name="SLA Süresi Doldu" attachedToRef="waitInProgress" cancelActivity="false">
+      <timerEventDefinition>
+        <timeDate>${slaTargetAt}</timeDate>
+      </timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="f4" sourceRef="slaTimer" targetRef="markBreached"/>
+
+    <serviceTask id="markBreached"
+                 name="SLA İhlali İşaretle"
+                 flowable:delegateExpression="${slaBreachDelegate}"/>
+    <sequenceFlow id="f5" sourceRef="markBreached" targetRef="endBreached"/>
+    <endEvent id="endBreached" name="SLA İhlali Kaydedildi"/>
+
+    <!-- Çözüldü mü? -->
+    <exclusiveGateway id="gatewayResolved" name="Çözüldü mü?" default="flowReopen"/>
+    <sequenceFlow id="flowResolved" sourceRef="gatewayResolved" targetRef="closeTicket">
+      <conditionExpression xsi:type="tFormalExpression">${status == 'RESOLVED' || status == 'CLOSED'}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="flowReopen" sourceRef="gatewayResolved" targetRef="waitInProgress"/>
+
+    <serviceTask id="closeTicket"
+                 name="Süreci Sonlandır"
+                 flowable:delegateExpression="${ticketCloseDelegate}"/>
+    <sequenceFlow id="f6" sourceRef="closeTicket" targetRef="end"/>
+    <endEvent id="end" name="Süreç Tamamlandı"/>
+
+  </process>
+</definitions>

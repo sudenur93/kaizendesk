@@ -1,0 +1,25 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5433/kaizendesk
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: sudenuryurt933@gmail.com
+    password: nexrmxcwvwqmtljo
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:8081/realms/kaizendesk/protocol/openid-connect/certs
+
+server:
+  # 8080 bazen nginx / başka servis tarafından kullanılır; Vite proxy buna göre ayarlı
+  port: 8082
+
+management:
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces
