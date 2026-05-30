@@ -94,12 +94,17 @@ export default function PortalShell() {
   }, []);
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
+    const root = document.documentElement;
+    // Tema değişiminde kısa süreli yumuşak geçiş
+    root.classList.add('theme-transition');
+    root.setAttribute('data-theme', theme);
+    const t = setTimeout(() => root.classList.remove('theme-transition'), 400);
     try {
       localStorage.setItem('theme', theme);
     } catch {
       // ignore
     }
+    return () => clearTimeout(t);
   }, [theme]);
 
   // Bildirim izni iste

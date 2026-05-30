@@ -142,6 +142,8 @@ export default function AgentTicketsPage() {
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [productFilter, setProductFilter] = useState('all');
   const [teamFilter, setTeamFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [loading, setLoading] = useState(true);
   const [claimingId, setClaimingId] = useState(null);
   const [error, setError] = useState('');
@@ -300,13 +302,20 @@ export default function AgentTicketsPage() {
         const assignedAgent = agents.find((a) => a.id === ticket.assignedAgentId);
         if (!assignedAgent || assignedAgent.team !== teamFilter) return false;
       }
+      // Tarih aralığı filtresi (açılış tarihine göre)
+      if (dateFrom || dateTo) {
+        const created = ticket.createdAt ? new Date(ticket.createdAt) : null;
+        if (!created) return false;
+        if (dateFrom && created < new Date(dateFrom + 'T00:00:00')) return false;
+        if (dateTo && created > new Date(dateTo + 'T23:59:59')) return false;
+      }
       if (q) {
         const text = `${ticket.id} ${ticket.title || ''} ${ticket.createdByUsername || ''}`.toLowerCase();
         if (!text.includes(q)) return false;
       }
       return true;
     });
-  }, [ownerScope, tickets, user, statusFilter, priorityFilter, productFilter, teamFilter, agents, search, view]);
+  }, [ownerScope, tickets, user, statusFilter, priorityFilter, productFilter, teamFilter, dateFrom, dateTo, agents, search, view]);
 
   const visibleTickets = useMemo(() => [...filteredTickets].sort(compareTicketsByPriorityThenSla), [filteredTickets]);
 
@@ -326,7 +335,7 @@ export default function AgentTicketsPage() {
   }, [agents, user, tickets]);
 
   // Filtre değişince seçimi temizle
-  useEffect(() => { setSelectedIds(new Set()); }, [ownerScope, statusFilter, priorityFilter, productFilter, teamFilter]);
+  useEffect(() => { setSelectedIds(new Set()); }, [ownerScope, statusFilter, priorityFilter, productFilter, teamFilter, dateFrom, dateTo]);
 
   function setOwnerTab(scope) {
     setOwnerScope(scope);
@@ -519,6 +528,22 @@ export default function AgentTicketsPage() {
                 </select>
               );
             })()}
+            <div className="row" style={{ gap: 6, alignItems: 'center' }} title="Açılış tarihine göre filtrele">
+              <Ic.Clock size={13} style={{ color: 'var(--text-3)' }} />
+              <input type="date" className="select" style={{ width: 140, padding: '6px 8px' }}
+                value={dateFrom} max={dateTo || undefined}
+                onChange={(e) => setDateFrom(e.target.value)} />
+              <span style={{ color: 'var(--text-3)', fontSize: 12 }}>–</span>
+              <input type="date" className="select" style={{ width: 140, padding: '6px 8px' }}
+                value={dateTo} min={dateFrom || undefined}
+                onChange={(e) => setDateTo(e.target.value)} />
+              {(dateFrom || dateTo) && (
+                <button type="button" className="btn btn-sm btn-ghost" style={{ padding: '4px 8px' }}
+                  onClick={() => { setDateFrom(''); setDateTo(''); }} title="Tarih filtresini temizle">
+                  <Ic.X size={12} />
+                </button>
+              )}
+            </div>
           </div>
 
           {error && (

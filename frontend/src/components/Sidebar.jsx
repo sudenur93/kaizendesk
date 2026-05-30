@@ -1,6 +1,7 @@
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import Ic from './Icons';
-import { Avatar, getInitials } from './Common';
+import { Avatar, getAvatarColor, getInitials } from './Common';
 import { logout } from '../services/api';
 
 const NAVS = {
@@ -53,6 +54,17 @@ export default function Sidebar({ role, user, counts = {}, onLogout }) {
   const loc = useLocation();
   const nav = NAVS[role] || NAVS.CUSTOMER;
   const initials = getInitials(user?.name);
+  // Kendi avatar rengi — ayarlardan değişince anında güncellensin
+  const [avatarColor, setAvatarColor] = useState(getAvatarColor());
+  useEffect(() => {
+    const sync = () => setAvatarColor(getAvatarColor());
+    window.addEventListener('avatar-color-change', sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener('avatar-color-change', sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
   const roleLabel =
     role === 'CUSTOMER' ? 'Müşteri' : role === 'AGENT' ? 'Destek Uzmanı' : 'Yönetici';
 
@@ -100,7 +112,7 @@ export default function Sidebar({ role, user, counts = {}, onLogout }) {
           <span>Hesap Ayarları</span>
         </Link>
         <div className="user-card" role="button" onClick={handleLogout} title="Çıkış yap">
-          <Avatar initials={initials} />
+          <Avatar initials={initials} color={avatarColor} />
           <div className="who">
             {user?.name || 'Kullanıcı'}
             <small>{roleLabel}</small>

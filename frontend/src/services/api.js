@@ -55,13 +55,28 @@ api.interceptors.request.use((config) => {
  * Yanıt interceptor: 401 (token süresi doldu) veya 403 (yetkisiz) durumunda
  * tüm oturum verilerini temizler ve kullanıcıyı login sayfasına yönlendirir.
  */
+/**
+ * Oturum verilerini temizler ama kullanıcı tercihlerini (avatar rengi, tema, beni hatırla)
+ * korur — böylece çıkış/giriş sonrası bu ayarlar kaybolmaz.
+ */
+function clearSession() {
+  const PRESERVE = ['avatarColor', 'theme', 'rememberMe'];
+  const kept = {};
+  PRESERVE.forEach((k) => {
+    const v = localStorage.getItem(k);
+    if (v != null) kept[k] = v;
+  });
+  localStorage.clear();
+  sessionStorage.clear();
+  Object.entries(kept).forEach(([k, v]) => localStorage.setItem(k, v));
+}
+
 api.interceptors.response.use(
   (res) => res,
   (err) => {
     const status = err.response?.status;
     if (status === 401 || status === 403) {
-      localStorage.clear();
-      sessionStorage.clear();
+      clearSession();
       if (!window.location.pathname.startsWith('/login')) {
         window.location.href = '/login?expired=1';
       }
@@ -98,7 +113,7 @@ export async function login(username, password, totp = '', remember = true) {
   // Beni hatırla: localStorage (kalıcı) vs sessionStorage (sekme kapanınca siler)
   localStorage.setItem('rememberMe', remember ? '1' : '0');
   const storage = remember ? localStorage : sessionStorage;
-  if (!remember) localStorage.clear(); // önceki kalıcı oturumu temizle
+  if (!remember) clearSession(); // önceki kalıcı oturumu temizle (tercihleri koru)
 
   storage.setItem('token', token);
   storage.setItem('refreshToken', refreshToken);
@@ -165,8 +180,7 @@ export async function register(username, password, email, firstName, lastName, r
 }
 
 export function logout() {
-  localStorage.clear();
-  sessionStorage.clear();
+  clearSession();
   window.location.href = '/login';
 }
 

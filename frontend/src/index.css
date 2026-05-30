@@ -75,9 +75,12 @@
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; }
 
-/* Tema geçiş animasyonu */
-*, *::before, *::after {
-  transition: background-color .2s ease, border-color .2s ease, color .15s ease;
+/* Tema geçiş animasyonu — yalnızca tema değişiminde (.theme-transition html'e eklenir) */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition: background-color .35s ease, border-color .35s ease, color .35s ease, fill .35s ease !important;
 }
 
 body {
@@ -849,10 +852,25 @@ a { color: inherit; text-decoration: none; }
 .dialog-foot { padding: 14px 20px; border-top: 1px solid var(--hairline); display: flex; justify-content: flex-end; gap: 8px; background: var(--surface-2); }
 
 /* Toast */
-.toasts { position: fixed; right: 24px; bottom: 24px; display: flex; flex-direction: column; gap: 8px; z-index: 200; }
-.toast { background: var(--text); color: var(--surface); padding: 10px 14px; border-radius: 8px; font-size: 13px; box-shadow: var(--shadow-pop); display: flex; align-items: center; gap: 8px; min-width: 240px; }
+.toasts { position: fixed; right: 24px; bottom: 24px; display: flex; flex-direction: column; gap: 10px; z-index: 200; }
+.toast {
+  background: var(--surface); color: var(--text);
+  padding: 11px 15px; border-radius: 10px; font-size: 13px; font-weight: 500;
+  box-shadow: var(--shadow-pop); display: flex; align-items: center; gap: 10px; min-width: 250px;
+  border: 1px solid var(--hairline); border-left: 3px solid var(--accent);
+  animation: toastIn .28s cubic-bezier(.2,.8,.2,1);
+}
+.toast.leaving { animation: toastOut .3s ease forwards; }
+.toast .toast-ic { display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .toast .pip { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; }
-[data-theme="dark"] .toast { background: var(--surface); color: var(--text); border: 1px solid var(--hairline-strong); }
+.toast-success { border-left-color: var(--ok); }
+.toast-success .toast-ic { color: var(--ok); }
+.toast-error { border-left-color: var(--err); }
+.toast-error .toast-ic { color: var(--err); }
+.toast-info { border-left-color: var(--info); }
+.toast-info .toast-ic { color: var(--info); }
+@keyframes toastIn { from { opacity: 0; transform: translateX(40px) scale(.96); } to { opacity: 1; transform: translateX(0) scale(1); } }
+@keyframes toastOut { to { opacity: 0; transform: translateX(40px) scale(.96); } }
 
 /* Skeleton */
 @keyframes skeleton-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }

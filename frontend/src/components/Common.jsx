@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import Ic from './Icons';
 
 export const STATUS = {
   NEW: { label: 'Yeni', key: 's-new' },
@@ -34,8 +35,20 @@ export function PriorityBadge({ priority }) {
   return <span className={'badge ' + meta.key}>{meta.label}</span>;
 }
 
-export function Avatar({ initials, size = '' }) {
-  return <span className={'av ' + (size ? 'av-' + size : '')}>{initials || '?'}</span>;
+// Kullanıcının seçtiği avatar rengini localStorage'dan oku (kalıcı, tarayıcıda saklanır)
+export function getAvatarColor() {
+  return localStorage.getItem('avatarColor') || '';
+}
+
+export function Avatar({ initials, size = '', color = '' }) {
+  const style = color
+    ? { background: color, color: '#fff', borderColor: 'transparent' }
+    : undefined;
+  return (
+    <span className={'av ' + (size ? 'av-' + size : '')} style={style}>
+      {initials || '?'}
+    </span>
+  );
 }
 
 export function getInitials(name) {
@@ -206,18 +219,36 @@ export function EmptyState({ type = 'tickets', title, sub, action }) {
   );
 }
 
+// Mesaj metninden toast tipini otomatik algıla (mevcut çağrıları bozmadan)
+function detectToastType(text, explicit) {
+  if (explicit) return explicit;
+  const t = (text || '').toLocaleLowerCase('tr');
+  if (/hata|edilemedi|başarısız|geçersiz|yok|silindi|reddedildi/.test(t)) return 'error';
+  if (/oluşturuldu|gönderildi|kaydedildi|güncellendi|eklendi|başarı|onaylandı|alındı/.test(t)) return 'success';
+  return 'info';
+}
+
+const TOAST_ICON = {
+  success: <Ic.Check size={14} />,
+  error: <Ic.AlertTriangle size={14} />,
+  info: <Ic.Info size={14} />,
+};
+
 export function useToasts() {
   const [list, setList] = useState([]);
-  const push = useCallback((text) => {
+  const push = useCallback((text, type) => {
     const id = Math.random();
-    setList((l) => [...l, { id, text }]);
-    setTimeout(() => setList((l) => l.filter((x) => x.id !== id)), 2600);
+    const kind = detectToastType(text, type);
+    setList((l) => [...l, { id, text, kind, leaving: false }]);
+    // çıkış animasyonu için önce leaving=true, sonra kaldır
+    setTimeout(() => setList((l) => l.map((x) => (x.id === id ? { ...x, leaving: true } : x))), 2600);
+    setTimeout(() => setList((l) => l.filter((x) => x.id !== id)), 2900);
   }, []);
   const node = (
     <div className="toasts">
       {list.map((t) => (
-        <div className="toast" key={t.id}>
-          <span className="pip" />
+        <div className={`toast toast-${t.kind}${t.leaving ? ' leaving' : ''}`} key={t.id}>
+          <span className="toast-ic">{TOAST_ICON[t.kind] || <span className="pip" />}</span>
           {t.text}
         </div>
       ))}

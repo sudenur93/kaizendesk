@@ -125,6 +125,8 @@ export default function AccountSettingsPage() {
   function handleAvatarColorClick(color) {
     setAvatarColor(color);
     localStorage.setItem('avatarColor', color);
+    // Sidebar'daki avatar anında güncellensin
+    window.dispatchEvent(new Event('avatar-color-change'));
   }
 
   function handleNotifToggle(key) {
