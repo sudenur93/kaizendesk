@@ -128,6 +128,32 @@ public class Ticket {
     @Column(name = "sla_breached", nullable = false)
     private boolean slaBreached = false;
 
+    /** Arşiv işareti — kapatmadan bağımsız; müşteri kapatırken arşive taşımayı seçebilir. */
+    @Column(name = "archived", nullable = false)
+    private boolean archived = false;
+
+    /** Memnuniyet puanı (CSAT) — müşteri 1-5 yıldız verir; null = puanlanmadı. */
+    @Column(name = "satisfaction_rating")
+    private Integer satisfactionRating;
+
+    /** Memnuniyet geri bildirimi (opsiyonel). */
+    @Column(name = "satisfaction_comment", columnDefinition = "TEXT")
+    private String satisfactionComment;
+
+    /**
+     * SLA duraklatma — müşteriden cevap beklenirken (WAITING_FOR_CUSTOMER) geçen
+     * toplam süre (dakika). Bu süre SLA hesabından düşülür (efektif hedef ötelenir).
+     */
+    @Column(name = "sla_paused_minutes", nullable = false)
+    private long slaPausedMinutes = 0;
+
+    /**
+     * Bilet en son WAITING_FOR_CUSTOMER durumuna girdiği an.
+     * Durumdan çıkınca (now - waitingSince) slaPausedMinutes'e eklenir ve null'lanır.
+     */
+    @Column(name = "waiting_since")
+    private Instant waitingSince;
+
     /**
      * Flowable BPMN süreç instance kimliği.
      * startProcess() çağrısı sonrası atanır; onStatusChanged() bu ID üzerinden çalışır.
@@ -285,6 +311,46 @@ public class Ticket {
 
     public boolean isSlaBreached() {
         return slaBreached;
+    }
+
+    public boolean isArchived() {
+        return archived;
+    }
+
+    public void setArchived(boolean archived) {
+        this.archived = archived;
+    }
+
+    public Integer getSatisfactionRating() {
+        return satisfactionRating;
+    }
+
+    public void setSatisfactionRating(Integer satisfactionRating) {
+        this.satisfactionRating = satisfactionRating;
+    }
+
+    public String getSatisfactionComment() {
+        return satisfactionComment;
+    }
+
+    public void setSatisfactionComment(String satisfactionComment) {
+        this.satisfactionComment = satisfactionComment;
+    }
+
+    public long getSlaPausedMinutes() {
+        return slaPausedMinutes;
+    }
+
+    public void setSlaPausedMinutes(long slaPausedMinutes) {
+        this.slaPausedMinutes = slaPausedMinutes;
+    }
+
+    public Instant getWaitingSince() {
+        return waitingSince;
+    }
+
+    public void setWaitingSince(Instant waitingSince) {
+        this.waitingSince = waitingSince;
     }
 
     public String getProcessInstanceId() {

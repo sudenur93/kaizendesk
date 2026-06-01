@@ -62,10 +62,13 @@ api.interceptors.request.use((config) => {
 function clearSession() {
   const PRESERVE = ['avatarColor', 'theme', 'rememberMe'];
   const kept = {};
-  PRESERVE.forEach((k) => {
-    const v = localStorage.getItem(k);
-    if (v != null) kept[k] = v;
-  });
+  // Tam eşleşen tercih anahtarları + 'kz_fav_' önekli favori anahtarları korunur
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (PRESERVE.includes(k) || (k && k.startsWith('kz_fav_'))) {
+      kept[k] = localStorage.getItem(k);
+    }
+  }
   localStorage.clear();
   sessionStorage.clear();
   Object.entries(kept).forEach(([k, v]) => localStorage.setItem(k, v));
@@ -296,8 +299,19 @@ export async function deleteTicket(ticketId) {
   await api.delete(`/tickets/${ticketId}`);
 }
 
-export async function customerTicketAction(ticketId, action) {
-  const res = await api.patch(`/tickets/${ticketId}/customer-action`, { action });
+export async function customerTicketAction(ticketId, action, archive = false) {
+  const res = await api.patch(`/tickets/${ticketId}/customer-action`, {
+    action,
+    archive: archive ? 'true' : 'false',
+  });
+  return res.data;
+}
+
+export async function rateTicket(ticketId, rating, comment = '') {
+  const res = await api.patch(`/tickets/${ticketId}/rating`, {
+    rating: String(rating),
+    comment,
+  });
   return res.data;
 }
 

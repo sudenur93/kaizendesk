@@ -14,6 +14,9 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     List<Ticket> findByStatus(TicketStatus status);
 
+    /** Belirli statüde ve çözüm zamanı verilen eşikten eski olan talepler (otomatik kapatma için). */
+    List<Ticket> findByStatusAndResolvedAtBefore(TicketStatus status, Instant cutoff);
+
     long countByStatus(TicketStatus status);
 
     long countBySlaBreachedTrue();

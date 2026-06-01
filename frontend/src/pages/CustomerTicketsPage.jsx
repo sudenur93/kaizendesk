@@ -12,6 +12,7 @@ import {
 } from '../components/Common';
 import AiChatWidget from '../components/AiChatWidget';
 import { getProducts, getTickets } from '../services/api';
+import { getFavorites, toggleFavorite } from '../favorites';
 
 const STATUS_TABS = [
   { key: 'all', label: 'Tümü' },
@@ -36,6 +37,13 @@ export default function CustomerTicketsPage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [favorites, setFavorites] = useState(getFavorites);
+
+  useEffect(() => {
+    const sync = () => setFavorites(getFavorites());
+    window.addEventListener('favorites-change', sync);
+    return () => window.removeEventListener('favorites-change', sync);
+  }, []);
 
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
@@ -75,6 +83,8 @@ export default function CustomerTicketsPage() {
   const filtered = useMemo(() => {
     const q = (search || '').trim().toLowerCase();
     return tickets.filter((t) => {
+      // Arşivlenen talepler burada gösterilmez — yalnızca Arşiv sayfasında görünür
+      if (t.archived) return false;
       if (statusFilter !== 'all' && t.status !== statusFilter) return false;
       if (priorityFilter !== 'all' && t.priority !== priorityFilter) return false;
       if (productFilter !== 'all' && String(t.productId) !== String(productFilter)) return false;
@@ -233,6 +243,18 @@ export default function CustomerTicketsPage() {
                       <td className="id">#{t.id}</td>
                       <td className="ttl">
                         <span className="row" style={{ gap: 8, alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); toggleFavorite(t.id); }}
+                            title={favorites.has(t.id) ? 'Favorilerden çıkar' : 'Favorilere ekle'}
+                            style={{
+                              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                              flexShrink: 0, display: 'flex', alignItems: 'center',
+                              color: favorites.has(t.id) ? '#f59e0b' : 'var(--text-3)',
+                            }}
+                          >
+                            <Ic.Star size={15} fill={favorites.has(t.id) ? 'currentColor' : 'none'} />
+                          </button>
                           <span>
                             {t.title}
                             {product && <span className="lbl"> · {product.name}</span>}

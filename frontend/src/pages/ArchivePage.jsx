@@ -17,8 +17,8 @@ export default function ArchivePage() {
     (async () => {
       setLoading(true);
       try {
-        const data = await getTickets({ status: 'CLOSED' });
-        setTickets(data);
+        const data = await getTickets();
+        setTickets(data.filter((t) => t.archived));
       } catch {
         setError('Arşiv yüklenemedi.');
       } finally {

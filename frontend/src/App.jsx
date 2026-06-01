@@ -32,6 +32,7 @@ import ManagerTeamPage from './pages/ManagerTeamPage';
 import ManagerApprovalsPage from './pages/ManagerApprovalsPage';
 import AccountSettingsPage from './pages/AccountSettingsPage';
 import ArchivePage from './pages/ArchivePage';
+import FavoritesPage from './pages/FavoritesPage';
 
 /**
  * Korumalı route sarmalayıcısı.
@@ -157,6 +158,14 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={['CUSTOMER', 'AGENT', 'MANAGER']}>
                 <ArchivePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/favorites"
+            element={
+              <ProtectedRoute allowedRoles={['CUSTOMER', 'AGENT', 'MANAGER']}>
+                <FavoritesPage />
               </ProtectedRoute>
             }
           />

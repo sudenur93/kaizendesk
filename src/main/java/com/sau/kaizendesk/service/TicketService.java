@@ -24,6 +24,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +51,14 @@ public class TicketService {
             Comparator.comparing(Ticket::getPriority)
                     .reversed()
                     .thenComparing(Ticket::getCreatedAt, Comparator.reverseOrder());
+
+    /** Çözülmüş ama müşteri tarafından kapatılmayan talepler kaç gün sonra otomatik kapatılır. */
+    @Value("${kaizendesk.auto-close.resolved-after-days:7}")
+    private int autoCloseDays;
+
+    /** Kapatılan bir talep kaç gün içinde yeniden açılabilir (sonrasında yeni talep gerekir). */
+    @Value("${kaizendesk.reopen-window-days:30}")
+    private int reopenDays;
 
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
@@ -139,12 +149,14 @@ public class TicketService {
         ticket.setSlaTargetAt(calculateSlaTargetAt(request.getPriority(), now));
 
         Ticket savedTicket = ticketRepository.save(ticket);
+        // Temiz, sıralı ticket numarası — DB id'sine göre (örn. KD-035)
+        savedTicket.setTicketNo(String.format(Locale.ROOT, "KD-%03d", savedTicket.getId()));
         // Flowable BPMN: ticket için process instance başlat
         String pid = ticketWorkflowService.startProcess(savedTicket);
         if (pid != null) {
             savedTicket.setProcessInstanceId(pid);
-            savedTicket = ticketRepository.save(savedTicket);
         }
+        savedTicket = ticketRepository.save(savedTicket);
         ticketNotificationService.onTicketCreated(savedTicket);
         ticketNotificationService.maybeNotifySlaAtRisk(savedTicket, now);
         activityLogService.log("TICKET_CREATED", username, savedTicket, null);
@@ -225,6 +237,16 @@ public class TicketService {
         }
 
         Instant now = Instant.now();
+
+        // SLA duraklatma: WAITING_FOR_CUSTOMER'a girerken saati durdur, çıkarken beklenen süreyi biriktir
+        if (newStatus == TicketStatus.WAITING_FOR_CUSTOMER) {
+            ticket.setWaitingSince(now);
+        } else if (from == TicketStatus.WAITING_FOR_CUSTOMER && ticket.getWaitingSince() != null) {
+            long waited = Math.max(0, ChronoUnit.MINUTES.between(ticket.getWaitingSince(), now));
+            ticket.setSlaPausedMinutes(ticket.getSlaPausedMinutes() + waited);
+            ticket.setWaitingSince(null);
+        }
+
         if (newStatus == TicketStatus.RESOLVED) {
             if (resolutionNote == null || resolutionNote.isBlank()) {
                 throw new IllegalArgumentException("Çözüm notu zorunlu (resolutionNote)");
@@ -234,6 +256,7 @@ public class TicketService {
         }
         if (newStatus == TicketStatus.CLOSED) {
             ticket.setClosedAt(now);
+            ticket.setArchived(true); // agent/manager kapatınca otomatik arşivle
         }
 
         boolean wasBreached = ticket.isSlaBreached();
@@ -342,30 +365,72 @@ public class TicketService {
      * reopen  : RESOLVED → IN_PROGRESS  (müşteri sorunun hâlâ devam ettiğini bildirir)
      */
     @Transactional
-    public TicketResponse customerAction(Long ticketId, String action, String username) {
+    public TicketResponse customerAction(Long ticketId, String action, boolean archive, String username) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket bulunamadı: " + ticketId));
         if (ticket.getCreatedBy() == null || !ticket.getCreatedBy().getUsername().equals(username)) {
             throw new SecurityException("Bu talep üzerinde işlem yapma yetkiniz yok.");
         }
-        if (ticket.getStatus() != TicketStatus.RESOLVED) {
-            throw new IllegalStateException("Bu aksiyon yalnızca 'Çözüldü' durumundaki talepler için geçerlidir.");
-        }
         Instant now = Instant.now();
         TicketStatus from = ticket.getStatus();
         if ("confirm".equals(action)) {
+            // Onaylama yalnızca çözülmüş talepte
+            if (from != TicketStatus.RESOLVED) {
+                throw new IllegalStateException("Onaylama yalnızca 'Çözüldü' durumundaki talepler için geçerlidir.");
+            }
             ticket.setStatus(TicketStatus.CLOSED);
             ticket.setClosedAt(now);
-            activityLogService.log("STATUS_CHANGED", username, ticket, "RESOLVED → CLOSED (müşteri onayı)");
+            ticket.setArchived(archive); // müşteri arşive taşımayı seçtiyse
+            activityLogService.log("STATUS_CHANGED", username, ticket,
+                    "RESOLVED → CLOSED (müşteri onayı" + (archive ? ", arşivlendi" : "") + ")");
         } else if ("reopen".equals(action)) {
+            // Yeniden açma: RESOLVED'dan her zaman; CLOSED'dan ise reopenDays içinde
+            if (from != TicketStatus.RESOLVED && from != TicketStatus.CLOSED) {
+                throw new IllegalStateException("Bu talep yeniden açılamaz.");
+            }
+            if (from == TicketStatus.CLOSED) {
+                Instant limit = ticket.getClosedAt() != null
+                        ? ticket.getClosedAt().plus(reopenDays, ChronoUnit.DAYS) : null;
+                if (limit == null || now.isAfter(limit)) {
+                    throw new IllegalStateException(
+                            "Bu talep " + reopenDays + " günlük yeniden açma süresini doldurdu. Lütfen yeni bir talep oluşturun.");
+                }
+                ticket.setArchived(false); // arşivden çıkar
+                ticket.setClosedAt(null);  // kapanış iptal
+            }
             ticket.setStatus(TicketStatus.IN_PROGRESS);
-            activityLogService.log("STATUS_CHANGED", username, ticket, "RESOLVED → IN_PROGRESS (müşteri yeniden açtı)");
+            activityLogService.log("STATUS_CHANGED", username, ticket,
+                    from.name() + " → IN_PROGRESS (müşteri yeniden açtı)");
         } else {
             throw new IllegalArgumentException("Geçersiz aksiyon: " + action);
         }
         ticket.setUpdatedAt(now);
         Ticket saved = ticketRepository.save(ticket);
         ticketNotificationService.onStatusChanged(saved, from, saved.getStatus());
+        return mapToResponse(saved);
+    }
+
+    /**
+     * Müşteri memnuniyet puanı (CSAT). Yalnızca çözülmüş/kapatılmış kendi talebine, 1-5 arası.
+     */
+    @Transactional
+    public TicketResponse rateTicket(Long ticketId, int rating, String comment, String username) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new IllegalArgumentException("Ticket bulunamadı: " + ticketId));
+        if (ticket.getCreatedBy() == null || !ticket.getCreatedBy().getUsername().equals(username)) {
+            throw new SecurityException("Bu talebi puanlama yetkiniz yok.");
+        }
+        if (ticket.getStatus() != TicketStatus.RESOLVED && ticket.getStatus() != TicketStatus.CLOSED) {
+            throw new IllegalStateException("Yalnızca çözülmüş veya kapatılmış talepler puanlanabilir.");
+        }
+        if (rating < 1 || rating > 5) {
+            throw new IllegalArgumentException("Puan 1 ile 5 arasında olmalıdır.");
+        }
+        ticket.setSatisfactionRating(rating);
+        ticket.setSatisfactionComment(comment != null && !comment.isBlank() ? comment.trim() : null);
+        ticket.setUpdatedAt(Instant.now());
+        Ticket saved = ticketRepository.save(ticket);
+        activityLogService.log("RATED", username, saved, rating + "/5");
         return mapToResponse(saved);
     }
 
@@ -379,6 +444,21 @@ public class TicketService {
         Ticket saved = ticketRepository.save(ticket);
         activityLogService.log("PRIORITY_CHANGED", actor, saved, newPriority.name());
         return mapToResponse(saved);
+    }
+
+    /**
+     * Çözülmüş (RESOLVED) ama müşteri tarafından onaylanmadığı için kapatılmamış talepleri
+     * belirli gün (varsayılan 7) sonra otomatik kapatır + arşivler.
+     * Her saat başı çalışır. Süre kaizendesk.auto-close.resolved-after-days ile ayarlanır.
+     */
+    @Transactional
+    @Scheduled(cron = "${kaizendesk.auto-close.cron:0 0 * * * *}")
+    public void autoCloseStaleResolvedTickets() {
+        Instant cutoff = Instant.now().minus(autoCloseDays, ChronoUnit.DAYS);
+        List<Ticket> stale = ticketRepository.findByStatusAndResolvedAtBefore(TicketStatus.RESOLVED, cutoff);
+        for (Ticket t : stale) {
+            updateStatus(t.getId(), TicketStatus.CLOSED, null, "system-auto-close");
+        }
     }
 
     private void syncSlaBreachedFlag(Ticket ticket, Instant now) {
@@ -538,6 +618,9 @@ public class TicketService {
         response.setSlaTargetAt(ticket.getSlaTargetAt());
         response.setSlaBreached(SlaEvaluator.isBreached(ticket, now));
         response.setSlaAtRisk(SlaEvaluator.isAtRisk(ticket, now));
+        response.setArchived(ticket.isArchived());
+        response.setSatisfactionRating(ticket.getSatisfactionRating());
+        response.setSatisfactionComment(ticket.getSatisfactionComment());
         return response;
     }
 }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import Ic from '../components/Icons';
-import { Avatar, PriorityBadge, SlaBar, Skeleton, SkeletonCard, StatusBadge, fmtDate, getInitials, slaInfo } from '../components/Common';
+import { Avatar, PriorityBadge, SlaBar, Skeleton, SkeletonCard, StatusBadge, fmtDate, getInitials, highlightMentions, slaInfo } from '../components/Common';
 import {
   addTicketComment,
   addWorklog,
@@ -86,6 +86,27 @@ export default function AgentTicketDetailPage() {
   const [attachments, setAttachments] = useState([]);
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState('');
+  const [mentionMatches, setMentionMatches] = useState([]);
+
+  // Yorum kutusunda @ yazıldıkça agent önerileri
+  function handleCommentChange(value) {
+    setCommentText(value);
+    const m = value.match(/@([A-Za-z0-9._-]*)$/);
+    if (m) {
+      const frag = m[1].toLowerCase();
+      const matches = agents
+        .filter((a) => a.username && a.username.toLowerCase().includes(frag))
+        .slice(0, 5);
+      setMentionMatches(matches);
+    } else {
+      setMentionMatches([]);
+    }
+  }
+
+  function insertMention(username) {
+    setCommentText((prev) => prev.replace(/@([A-Za-z0-9._-]*)$/, '@' + username + ' '));
+    setMentionMatches([]);
+  }
   const [noteMode, setNoteMode] = useState(NOTE_EXTERNAL);
   const [worklogs, setWorklogs] = useState([]);
   const [showWorklog, setShowWorklog] = useState(false);
@@ -633,7 +654,7 @@ export default function AgentTicketDetailPage() {
                                   ? <AgentInlineImage key={i} ticketId={ticket.id} att={att} fname={fname} />
                                   : <span key={i} style={{ color: 'var(--accent)', fontSize: 13 }}>📎 {fname}</span>;
                               }
-                              return <span key={i}>{part}</span>;
+                              return <span key={i}>{highlightMentions(part)}</span>;
                             })}
                           </div>
                         </div>
@@ -663,15 +684,44 @@ export default function AgentTicketDetailPage() {
                             disabled={working}>✕</button>
                         </div>
                       )}
-                      <textarea
-                        placeholder={noteMode === NOTE_INTERNAL ? 'Takım içi not (müşteriye görünmez)…' : 'Müşteriye yanıtınızı yazın… (Ctrl+Enter ile gönder)'}
-                        value={commentText}
-                        onChange={(e) => setCommentText(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && (commentText.trim() || commentImage)) handleCommentSubmit(e); }}
-                        maxLength={1000}
-                        disabled={working}
-                        style={noteMode === NOTE_INTERNAL ? { background: 'color-mix(in oklab, var(--warn) 6%, var(--surface))' } : {}}
-                      />
+                      <div style={{ position: 'relative' }}>
+                        <textarea
+                          placeholder={noteMode === NOTE_INTERNAL ? 'Takım içi not (müşteriye görünmez)… @ ile etiketleyin' : 'Müşteriye yanıtınızı yazın… (Ctrl+Enter ile gönder)'}
+                          value={commentText}
+                          onChange={(e) => handleCommentChange(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && (commentText.trim() || commentImage)) handleCommentSubmit(e); }}
+                          maxLength={1000}
+                          disabled={working}
+                          style={noteMode === NOTE_INTERNAL ? { background: 'color-mix(in oklab, var(--warn) 6%, var(--surface))', width: '100%' } : { width: '100%' }}
+                        />
+                        {mentionMatches.length > 0 && (
+                          <div style={{
+                            position: 'absolute', bottom: '100%', left: 0, marginBottom: 4, zIndex: 20,
+                            background: 'var(--surface)', border: '1px solid var(--hairline)', borderRadius: 8,
+                            boxShadow: 'var(--shadow-pop)', minWidth: 200, overflow: 'hidden',
+                          }}>
+                            {mentionMatches.map((a) => (
+                              <button
+                                key={a.id}
+                                type="button"
+                                onClick={() => insertMention(a.username)}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                                  padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer',
+                                  textAlign: 'left', fontSize: 13,
+                                }}
+                                onMouseDown={(e) => e.preventDefault()}
+                              >
+                                <Avatar initials={getInitials(a.name)} size="sm" />
+                                <span>
+                                  <span style={{ fontWeight: 500 }}>@{a.username}</span>
+                                  <span className="muted" style={{ marginLeft: 6, fontSize: 12 }}>{a.name}</span>
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                       <div className="composer-foot">
                         <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Görsel ekle">
                           <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleCommentImagePick} disabled={working} />

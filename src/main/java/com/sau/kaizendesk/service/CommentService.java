@@ -74,10 +74,39 @@ public class CommentService {
             }
         }
 
+        // @bahsetme — yorumda @kullanıcı geçenlere bildirim gönder
+        notifyMentions(request.getMessage(), ticket, author);
+
         String eventType = request.isInternal() ? "INTERNAL_NOTE" : "COMMENT_ADDED";
         activityLogService.log(eventType, username, ticket, null);
 
         return mapToResponse(savedComment);
+    }
+
+    private static final java.util.regex.Pattern MENTION_PATTERN =
+            java.util.regex.Pattern.compile("@([A-Za-z0-9._-]+)");
+
+    private void notifyMentions(String message, Ticket ticket, User author) {
+        if (message == null || message.isBlank()) {
+            return;
+        }
+        java.util.regex.Matcher m = MENTION_PATTERN.matcher(message);
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        while (m.find()) {
+            String uname = m.group(1);
+            if (!seen.add(uname.toLowerCase())) {
+                continue;
+            }
+            userRepository.findByUsername(uname).ifPresent(u -> {
+                if (!u.getUsername().equals(author.getUsername())) {
+                    try {
+                        ticketNotificationService.onMention(ticket, u, author);
+                    } catch (Exception ignored) {
+                        // bildirim hatası yorum kaydını engellemesin
+                    }
+                }
+            });
+        }
     }
 
     public List<CommentResponse> getComments(Long ticketId, String username, boolean isCustomer) {

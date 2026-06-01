@@ -40,6 +40,15 @@ export function getAvatarColor() {
   return localStorage.getItem('avatarColor') || '';
 }
 
+// Yorum metnindeki @kullanıcı bahsetmelerini vurgular (mavi + kalın)
+export function highlightMentions(text) {
+  return String(text).split(/(@[A-Za-z0-9._-]+)/g).map((p, i) =>
+    /^@[A-Za-z0-9._-]+$/.test(p)
+      ? <span key={i} style={{ color: 'var(--accent)', fontWeight: 600 }}>{p}</span>
+      : p
+  );
+}
+
 export function Avatar({ initials, size = '', color = '' }) {
   const style = color
     ? { background: color, color: '#fff', borderColor: 'transparent' }

@@ -130,6 +130,11 @@ export const Ic = {
       <path d="M12 11v5M12 8h.01" />
     </>
   ),
+  Star: makeIcon(
+    <>
+      <path d="M12 3.5l2.6 5.3 5.9.9-4.25 4.1 1 5.8L12 17.9 6.75 19.6l1-5.8L3.5 9.7l5.9-.9z" />
+    </>
+  ),
   X: makeIcon(
     <>
       <path d="M6 6l12 12M18 6L6 18" />

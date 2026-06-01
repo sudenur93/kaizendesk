@@ -11,11 +11,13 @@ import {
   StatusBadge,
   fmtDate,
   getInitials,
+  highlightMentions,
   slaInfo,
 } from '../components/Common';
 import {
   addTicketComment,
   customerTicketAction,
+  rateTicket,
   deleteTicket,
   downloadTicketAttachment,
   getCategories,
@@ -73,14 +75,40 @@ export default function CustomerTicketDetailPage() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [actionWorking, setActionWorking] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState(false);
+  const [ratingHover, setRatingHover] = useState(0);
+  const [ratingComment, setRatingComment] = useState('');
+  const [ratingSaving, setRatingSaving] = useState(false);
+
+  async function handleRate(stars) {
+    setRatingSaving(true);
+    try {
+      const updated = await rateTicket(ticket.id, stars, ratingComment);
+      setTicket(updated);
+      if (pushToast) pushToast('Değerlendirmeniz için teşekkürler!');
+    } catch {
+      if (pushToast) pushToast('Değerlendirme kaydedilemedi.');
+    } finally {
+      setRatingSaving(false);
+    }
+  }
   const [commentImage, setCommentImage] = useState(null); // {file, previewUrl}
 
-  async function handleCustomerAction(action) {
+  async function handleCustomerAction(action, archive = false) {
     setActionWorking(true);
     try {
-      const updated = await customerTicketAction(ticket.id, action);
+      const updated = await customerTicketAction(ticket.id, action, archive);
       setTicket(updated);
-      if (pushToast) pushToast(action === 'confirm' ? 'Çözüm onaylandı, talep kapatıldı.' : 'Talep yeniden açıldı.');
+      setConfirmDialog(false);
+      if (pushToast) {
+        pushToast(
+          action === 'reopen'
+            ? 'Talep yeniden açıldı.'
+            : archive
+              ? 'Çözüm onaylandı, talep kapatılıp arşive taşındı.'
+              : 'Çözüm onaylandı, talep kapatıldı.'
+        );
+      }
     } catch {
       if (pushToast) pushToast('İşlem gerçekleştirilemedi.');
     } finally {
@@ -322,7 +350,7 @@ export default function CustomerTicketDetailPage() {
                 className="btn btn-sm"
                 style={{ background: '#10b981', color: '#fff', border: 'none' }}
                 disabled={actionWorking}
-                onClick={() => handleCustomerAction('confirm')}
+                onClick={() => setConfirmDialog(true)}
               >
                 ✓ Çözümü Onayla
               </button>
@@ -335,6 +363,145 @@ export default function CustomerTicketDetailPage() {
                 ↩ Yeniden Aç
               </button>
             </div>
+          </div>
+        )}
+
+        {/* CLOSED — 30 gün içinde yeniden açılabilir */}
+        {ticket?.status === 'CLOSED' && (() => {
+          const REOPEN_DAYS = 30;
+          const closed = ticket.closedAt ? new Date(ticket.closedAt) : null;
+          const daysSince = closed ? (Date.now() - closed.getTime()) / 86400000 : Infinity;
+          const canReopen = daysSince <= REOPEN_DAYS;
+          const remaining = Math.max(0, Math.ceil(REOPEN_DAYS - daysSince));
+          return (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+              background: 'var(--bg-soft)', border: '1px solid var(--hairline)',
+              borderRadius: 10, padding: '12px 16px', marginBottom: 16,
+            }}>
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>Bu talep kapatıldı</div>
+                <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 2 }}>
+                  {canReopen
+                    ? `Sorun tekrar ederse ${remaining} gün içinde yeniden açabilirsiniz.`
+                    : 'Yeniden açma süresi doldu. Lütfen yeni bir talep oluşturun.'}
+                </div>
+              </div>
+              {canReopen && (
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  disabled={actionWorking}
+                  onClick={() => handleCustomerAction('reopen')}
+                >
+                  ↩ Yeniden Aç
+                </button>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* Çözümü onayla → arşiv seçimi diyaloğu */}
+        {confirmDialog && (
+          <div
+            onClick={() => !actionWorking && setConfirmDialog(false)}
+            style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300,
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: 'var(--surface)', borderRadius: 14, padding: 24, maxWidth: 420, width: '90%',
+                boxShadow: 'var(--shadow-pop)', border: '1px solid var(--hairline)',
+              }}
+            >
+              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>Çözümü onayla</div>
+              <div style={{ fontSize: 13.5, color: 'var(--text-2)', lineHeight: 1.6, marginBottom: 20 }}>
+                Talep kapatılacak. Kapatılan talebi <b>arşive taşımak</b> ister misiniz?
+                Arşive taşımazsanız talep listenizde kapalı olarak kalır.
+              </div>
+              <div className="col" style={{ gap: 8 }}>
+                <button
+                  type="button" className="btn"
+                  style={{ background: '#10b981', color: '#fff', border: 'none', justifyContent: 'center' }}
+                  disabled={actionWorking}
+                  onClick={() => handleCustomerAction('confirm', true)}
+                >
+                  <Ic.Archive size={14} /> Kapat ve Arşive Taşı
+                </button>
+                <button
+                  type="button" className="btn btn-ghost" style={{ justifyContent: 'center' }}
+                  disabled={actionWorking}
+                  onClick={() => handleCustomerAction('confirm', false)}
+                >
+                  Sadece Kapat (arşivleme)
+                </button>
+                <button
+                  type="button" className="btn btn-ghost btn-sm" style={{ justifyContent: 'center', color: 'var(--text-3)' }}
+                  disabled={actionWorking}
+                  onClick={() => setConfirmDialog(false)}
+                >
+                  Vazgeç
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Memnuniyet anketi (CSAT) — çözülmüş/kapatılmış talepler için */}
+        {(ticket?.status === 'RESOLVED' || ticket?.status === 'CLOSED') && (
+          <div className="card card-pad" style={{ marginBottom: 16 }}>
+            {ticket.satisfactionRating ? (
+              <div className="row" style={{ gap: 10, alignItems: 'center' }}>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>Değerlendirmeniz:</span>
+                <span style={{ color: '#f59e0b', display: 'flex', gap: 2 }}>
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <Ic.Star key={s} size={18} fill={s <= ticket.satisfactionRating ? 'currentColor' : 'none'} />
+                  ))}
+                </span>
+                <span className="muted" style={{ fontSize: 12 }}>({ticket.satisfactionRating}/5)</span>
+                {ticket.satisfactionComment && (
+                  <span className="muted" style={{ fontSize: 13, fontStyle: 'italic' }}>— "{ticket.satisfactionComment}"</span>
+                )}
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Bu çözümden memnun kaldınız mı?</div>
+                <div className="muted" style={{ fontSize: 13, marginBottom: 12 }}>
+                  Destek deneyiminizi 1-5 yıldız ile değerlendirin.
+                </div>
+                <div className="row" style={{ gap: 4, marginBottom: 12 }}
+                  onMouseLeave={() => setRatingHover(0)}>
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      disabled={ratingSaving}
+                      onMouseEnter={() => setRatingHover(s)}
+                      onClick={() => handleRate(s)}
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer', padding: 2,
+                        color: s <= ratingHover ? '#f59e0b' : 'var(--text-3)',
+                      }}
+                      title={`${s} yıldız`}
+                    >
+                      <Ic.Star size={28} fill={s <= ratingHover ? 'currentColor' : 'none'} />
+                    </button>
+                  ))}
+                </div>
+                <input
+                  className="input"
+                  placeholder="Eklemek istediğiniz bir şey var mı? (opsiyonel)"
+                  value={ratingComment}
+                  onChange={(e) => setRatingComment(e.target.value)}
+                  maxLength={500}
+                  disabled={ratingSaving}
+                  style={{ fontSize: 13 }}
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -502,7 +669,7 @@ export default function CustomerTicketDetailPage() {
                                 </span>
                               );
                             }
-                            return <span key={i}>{part}</span>;
+                            return <span key={i}>{highlightMentions(part)}</span>;
                           })}
                         </div>
                       </div>

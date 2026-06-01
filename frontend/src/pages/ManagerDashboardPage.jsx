@@ -237,6 +237,12 @@ export default function ManagerDashboardPage() {
     ? Math.round((liveInTarget / liveOpenTickets.length) * 100)
     : 100;
 
+  // CSAT — müşteri memnuniyeti (puanlanmış talepler ortalaması)
+  const ratedTickets = allTickets.filter((t) => t.satisfactionRating);
+  const avgCsat = ratedTickets.length > 0
+    ? (ratedTickets.reduce((s, t) => s + t.satisfactionRating, 0) / ratedTickets.length).toFixed(1)
+    : null;
+
   const openCount = (data?.statusCounts?.NEW || 0) + (data?.statusCounts?.IN_PROGRESS || 0) + (data?.statusCounts?.WAITING_FOR_CUSTOMER || 0);
 
   return (
@@ -328,15 +334,16 @@ export default function ManagerDashboardPage() {
 
       {/* ── KPI strip ── */}
       {loading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 18 }}>
-          {[1,2,3,4].map(i => <SkeletonCard key={i} rows={2} />)}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14, marginBottom: 18 }}>
+          {[1,2,3,4,5].map(i => <SkeletonCard key={i} rows={2} />)}
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 18 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14, marginBottom: 18 }}>
           <KpiCard label="Açık Talepler" value={openCount} tone="warn" icon={<Ic.Inbox size={18} />} />
           <KpiCard label="Bugün Kapatılan" value={data?.closedToday} tone="ok" icon={<Ic.Check size={18} />} />
           <KpiCard label="SLA İhlali" value={data?.slaBreachedCount} tone="bad" icon={<Ic.AlertTriangle size={18} />} />
           <KpiCard label="Ort. Çözüm" value={fmtMinutes(data?.avgResolutionMinutes)} sub="çözüm süresi" icon={<Ic.Clock size={18} />} />
+          <KpiCard label="Memnuniyet" value={avgCsat ? `${avgCsat} / 5` : '—'} tone="ok" sub={avgCsat ? `${ratedTickets.length} değerlendirme` : 'henüz puan yok'} icon={<Ic.Star size={18} />} />
         </div>
       )}
 

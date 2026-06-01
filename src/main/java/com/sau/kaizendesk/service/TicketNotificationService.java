@@ -171,6 +171,14 @@ public class TicketNotificationService {
         };
     }
 
+    /** Bir yorumda @ ile bahsedilen kullanıcıya bildirim gönderir. */
+    public void onMention(Ticket ticket, User mentioned, User author) {
+        String who = author != null ? author.getUsername() : "Bir kullanıcı";
+        persist(mentioned, ticket, "MENTION",
+                "Bir yorumda bahsedildiniz",
+                who + ", #" + ticket.getId() + " talebindeki bir yorumda sizden bahsetti.");
+    }
+
     private void persist(User user, Ticket ticket, String type, String title, String message) {
         Notification n = new Notification();
         n.setUser(user);

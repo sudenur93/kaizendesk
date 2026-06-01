@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import Ic from '../components/Icons';
 import { EmptyState, PriorityBadge, SlaBar, SkeletonTable, StatusBadge, fmtDate, slaInfo } from '../components/Common';
 import TicketDrawer from '../components/TicketDrawer';
+import { getFavorites, toggleFavorite } from '../favorites';
 import {
   assignTicket,
   findSimilarTickets,
@@ -144,6 +145,7 @@ export default function AgentTicketsPage() {
   const [teamFilter, setTeamFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [favorites, setFavorites] = useState(getFavorites);
   const [loading, setLoading] = useState(true);
   const [claimingId, setClaimingId] = useState(null);
   const [error, setError] = useState('');
@@ -246,6 +248,18 @@ export default function AgentTicketsPage() {
   useEffect(() => {
     loadPage();
   }, []);
+
+  // Favori değişikliklerini dinle (yıldız toggle'ında anında güncelle)
+  useEffect(() => {
+    const sync = () => setFavorites(getFavorites());
+    window.addEventListener('favorites-change', sync);
+    return () => window.removeEventListener('favorites-change', sync);
+  }, []);
+
+  function handleToggleFavorite(e, ticketId) {
+    e.stopPropagation();
+    toggleFavorite(ticketId);
+  }
 
   useEffect(() => {
     const next = normalizeScopeFromUrl();
@@ -793,6 +807,18 @@ export default function AgentTicketsPage() {
                       </td>
                       <td className="id">#{ticket.id}</td>
                       <td className="ttl">
+                        <button
+                          type="button"
+                          onClick={(e) => handleToggleFavorite(e, ticket.id)}
+                          title={favorites.has(ticket.id) ? 'Favorilerden çıkar' : 'Favorilere ekle'}
+                          style={{
+                            background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                            marginRight: 8, verticalAlign: 'middle',
+                            color: favorites.has(ticket.id) ? '#f59e0b' : 'var(--text-3)',
+                          }}
+                        >
+                          <Ic.Star size={15} fill={favorites.has(ticket.id) ? 'currentColor' : 'none'} />
+                        </button>
                         {ticket.title}
                         <span className="lbl">
                           {' '}

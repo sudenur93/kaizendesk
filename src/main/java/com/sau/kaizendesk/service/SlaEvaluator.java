@@ -35,7 +35,8 @@ public final class SlaEvaluator {
         if (ticket.getSlaTargetAt() == null) {
             return false;
         }
-        Instant target = ticket.getSlaTargetAt();
+        // Efektif hedef = orijinal hedef + müşteri beklemesinde geçen süre (SLA durur)
+        Instant target = effectiveTarget(ticket, now);
         TicketStatus st = ticket.getStatus();
         if (st == TicketStatus.RESOLVED || st == TicketStatus.CLOSED) {
             // Tamamlanmış bilet: çözüm/kapanış zamanı hedefe göre değerlendirilir
@@ -47,6 +48,23 @@ public final class SlaEvaluator {
         }
         // Açık bilet: şu an hedeften sonraysa ihlal
         return now.isAfter(target);
+    }
+
+    /**
+     * SLA duraklatmasını hesaba katan efektif hedef zamanı döndürür.
+     * Müşteriden cevap beklenirken (WAITING_FOR_CUSTOMER) geçen süre SLA'dan düşülür:
+     * hedef, biriken bekleme süresi + (hâlâ beklemedeyse şimdiye kadarki bekleme) kadar ötelenir.
+     */
+    public static Instant effectiveTarget(Ticket ticket, Instant now) {
+        Instant target = ticket.getSlaTargetAt();
+        if (target == null) {
+            return null;
+        }
+        long pausedMin = ticket.getSlaPausedMinutes();
+        if (ticket.getStatus() == TicketStatus.WAITING_FOR_CUSTOMER && ticket.getWaitingSince() != null) {
+            pausedMin += Math.max(0, ChronoUnit.MINUTES.between(ticket.getWaitingSince(), now));
+        }
+        return pausedMin > 0 ? target.plus(pausedMin, ChronoUnit.MINUTES) : target;
     }
 
     /**
@@ -64,7 +82,11 @@ public final class SlaEvaluator {
         if (ticket.getStatus() == TicketStatus.CLOSED) {
             return false;
         }
-        Instant target = ticket.getSlaTargetAt();
+        // Müşteri beklenirken risk uyarısı verme (SLA duraklatılmış durumda)
+        if (ticket.getStatus() == TicketStatus.WAITING_FOR_CUSTOMER) {
+            return false;
+        }
+        Instant target = effectiveTarget(ticket, now);
         if (!now.isBefore(target)) {
             return false;
         }

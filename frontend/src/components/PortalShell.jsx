@@ -20,6 +20,7 @@ const CRUMB_MAP = {
   '/manager/team': ['Yönetici Portalı', 'Ekip'],
   '/agent/team': ['Ekibim', 'Ekip üyeleri ve iş yükü'],
   '/archive': ['Arşiv', 'Kapalı Talepler'],
+  '/favorites': ['Favoriler', 'Yıldızlı Talepler'],
   '/settings': ['Ayarlar', 'Hesap Ayarları'],
 };
 

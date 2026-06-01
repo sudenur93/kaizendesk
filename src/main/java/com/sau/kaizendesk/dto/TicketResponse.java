@@ -29,6 +29,9 @@ public class TicketResponse {
     private Instant slaTargetAt;
     private boolean slaBreached;
     private boolean slaAtRisk;
+    private boolean archived;
+    private Integer satisfactionRating;
+    private String satisfactionComment;
 
     public Long getId() {
         return id;
@@ -196,5 +199,29 @@ public class TicketResponse {
 
     public void setSlaAtRisk(boolean slaAtRisk) {
         this.slaAtRisk = slaAtRisk;
+    }
+
+    public boolean isArchived() {
+        return archived;
+    }
+
+    public void setArchived(boolean archived) {
+        this.archived = archived;
+    }
+
+    public Integer getSatisfactionRating() {
+        return satisfactionRating;
+    }
+
+    public void setSatisfactionRating(Integer satisfactionRating) {
+        this.satisfactionRating = satisfactionRating;
+    }
+
+    public String getSatisfactionComment() {
+        return satisfactionComment;
+    }
+
+    public void setSatisfactionComment(String satisfactionComment) {
+        this.satisfactionComment = satisfactionComment;
     }
 }

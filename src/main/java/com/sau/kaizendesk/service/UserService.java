@@ -63,6 +63,7 @@ public class UserService {
 
         UserResponse response = new UserResponse();
         response.setId(user.getId());
+        response.setUsername(user.getUsername());
         response.setName(user.getName());
         response.setEmail(user.getEmail());
         response.setRole(user.getRole());
@@ -77,6 +78,7 @@ public class UserService {
                 .map(u -> {
                     UserResponse r = new UserResponse();
                     r.setId(u.getId());
+                    r.setUsername(u.getUsername());
                     r.setName(u.getName());
                     r.setEmail(u.getEmail());
                     r.setRole(u.getRole());

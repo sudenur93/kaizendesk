@@ -132,7 +132,21 @@ public class TicketController {
     ) {
         String username = jwt.getClaimAsString("preferred_username");
         String action = body.get("action");
-        return ResponseEntity.ok(ticketService.customerAction(id, action, username));
+        boolean archive = "true".equalsIgnoreCase(body.get("archive"));
+        return ResponseEntity.ok(ticketService.customerAction(id, action, archive, username));
+    }
+
+    @PreAuthorize("hasRole('CUSTOMER')")
+    @PatchMapping("/{id}/rating")
+    public ResponseEntity<TicketResponse> rateTicket(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        String username = jwt.getClaimAsString("preferred_username");
+        int rating = Integer.parseInt(body.getOrDefault("rating", "0"));
+        String comment = body.get("comment");
+        return ResponseEntity.ok(ticketService.rateTicket(id, rating, comment, username));
     }
 
     /**
