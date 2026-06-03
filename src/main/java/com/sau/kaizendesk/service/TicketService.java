@@ -100,7 +100,7 @@ public class TicketService {
      *  2. Ürün ve kategorinin tutarlı olduğunu kontrol eder
      *  3. Seçilen sorun tiplerinin kategoriye ait ve aktif olduğunu doğrular
      *  4. Bileti kaydeder, SLA hedefini hesaplar
-     *  5. Flowable BPMN sürecini başlatır (processInstanceId atanır)
+     *  5. jBPM/Kogito BPMN sürecini başlatır (processInstanceId atanır)
      *  6. Oluşturulma bildirimi ve SLA risk bildirimi tetiklenir
      *  7. Aktivite logu yazılır
      */
@@ -151,7 +151,7 @@ public class TicketService {
         Ticket savedTicket = ticketRepository.save(ticket);
         // Temiz, sıralı ticket numarası — DB id'sine göre (örn. KD-035)
         savedTicket.setTicketNo(String.format(Locale.ROOT, "KD-%03d", savedTicket.getId()));
-        // Flowable BPMN: ticket için process instance başlat
+        // jBPM/Kogito BPMN: ticket için process instance başlat
         String pid = ticketWorkflowService.startProcess(savedTicket);
         if (pid != null) {
             savedTicket.setProcessInstanceId(pid);
@@ -339,6 +339,8 @@ public class TicketService {
         if (statusBefore != statusAfter) {
             ticketNotificationService.onStatusChanged(updatedTicket, statusBefore, statusAfter);
         }
+        // jBPM/Kogito: atama ile "Assign Ticket" adımı tamamlanır, süreç Investigate'e ilerler
+        ticketWorkflowService.onStatusChanged(updatedTicket.getProcessInstanceId(), statusAfter);
         ticketNotificationService.onAgentAssigned(updatedTicket);
         ticketNotificationService.maybeNotifySlaBreached(updatedTicket, wasBreached, now);
         ticketNotificationService.maybeNotifySlaAtRisk(updatedTicket, now);

@@ -1,6 +1,6 @@
--- Flowable BPMN engine ile çalışan ticket süreç örneklerinin id'sini saklar.
--- Her ticket bir process instance ile eşlenir; süreç ilerledikçe Flowable kendi
--- ACT_RU_* tablolarında durumu yönetir.
+-- jBPM 10 (Kogito) BPMN engine ile çalışan ticket süreç örneklerinin id'sini saklar.
+-- Her ticket bir process instance ile eşlenir; süreç ilerledikçe Kogito kendi
+-- tablolarında durumu yönetir.
 ALTER TABLE tickets
     ADD COLUMN IF NOT EXISTS process_instance_id VARCHAR(64);
 

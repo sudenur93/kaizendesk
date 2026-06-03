@@ -58,16 +58,38 @@ public class EmailService {
 
     private static String buildHtml(String title, String body) {
         return """
-                <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;\
-                padding:24px;border:1px solid #e0e0e0;border-radius:8px">
-                  <div style="background:#6c3ec1;color:#fff;padding:16px 24px;\
-                border-radius:8px 8px 0 0;margin:-24px -24px 24px -24px">
-                    <h2 style="margin:0;font-size:20px">KaizenDesk</h2>
+                <div style="background:#f7f6f3;padding:40px 0;font-family:'Inter','Segoe UI',Arial,sans-serif">
+                  <div style="max-width:560px;margin:0 auto">
+                    <!-- Brand bar -->
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">
+                      <div style="width:28px;height:28px;border-radius:7px;background:#15130f;\
+                color:#f7f6f3;display:inline-flex;align-items:center;justify-content:center;\
+                font-weight:700;font-size:13px;letter-spacing:-0.02em;position:relative">
+                        KD
+                        <span style="position:absolute;right:3px;bottom:3px;width:6px;height:6px;\
+                border-radius:50%;background:#c8202a"></span>
+                      </div>
+                      <span style="font-weight:600;font-size:14px;color:#15130f;letter-spacing:-0.01em">KaizenDesk</span>
+                    </div>
+                    <!-- Card -->
+                    <div style="background:#fff;border:1px solid rgba(20,18,14,0.10);\
+                border-radius:12px;overflow:hidden">
+                      <!-- Accent top bar -->
+                      <div style="height:3px;background:#c8202a"></div>
+                      <div style="padding:28px 32px">
+                        <h2 style="margin:0 0 14px;font-size:18px;font-weight:600;\
+                color:#15130f;letter-spacing:-0.02em;line-height:1.2">%s</h2>
+                        <p style="margin:0;font-size:14px;color:#4a4740;line-height:1.65">%s</p>
+                      </div>
+                      <!-- Footer -->
+                      <div style="padding:16px 32px;border-top:1px solid rgba(20,18,14,0.08);\
+                background:#fafaf8">
+                        <p style="margin:0;font-size:11.5px;color:#8a867d">
+                          Bu e-posta KaizenDesk sistemi tarafından otomatik gönderilmiştir.
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <h3 style="color:#333;margin-top:0">%s</h3>
-                  <p style="color:#555;line-height:1.6">%s</p>
-                  <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
-                  <p style="color:#999;font-size:12px">Bu e-posta KaizenDesk sistemi tarafından otomatik gönderilmiştir.</p>
                 </div>
                 """.formatted(title, body);
     }

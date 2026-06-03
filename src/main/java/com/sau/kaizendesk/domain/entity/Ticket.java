@@ -27,7 +27,7 @@ import java.util.Set;
  *
  * Yaşam döngüsü: NEW → IN_PROGRESS → (WAITING_FOR_CUSTOMER) → RESOLVED → CLOSED
  * SLA takibi: slaTargetAt alanı oluşturulma anında hesaplanır; slaBreached ihlal bayrağıdır.
- * Flowable BPMN entegrasyonu: processInstanceId ile süreç motoru bağlantısı kurulur.
+ * jBPM/Kogito BPMN entegrasyonu: processInstanceId ile süreç motoru bağlantısı kurulur.
  */
 @Entity
 @Table(name = "tickets")
@@ -116,7 +116,7 @@ public class Ticket {
     /**
      * SLA çözüm hedef zamanı.
      * Oluşturulma anında önceliğe göre hesaplanır (LOW=1440dk, MEDIUM=480dk, HIGH=240dk).
-     * Flowable timer event bu değeri kullanarak ihlal bildirimi tetikler.
+     * jBPM/Kogito timer event bu değeri kullanarak ihlal bildirimi tetikler.
      */
     @Column(name = "sla_target_at")
     private Instant slaTargetAt;
@@ -155,7 +155,7 @@ public class Ticket {
     private Instant waitingSince;
 
     /**
-     * Flowable BPMN süreç instance kimliği.
+     * jBPM/Kogito BPMN süreç instance kimliği.
      * startProcess() çağrısı sonrası atanır; onStatusChanged() bu ID üzerinden çalışır.
      */
     @Column(name = "process_instance_id", length = 64)

@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="_ticketFlowDefinitions"
+                   targetNamespace="http://www.sau.com/kaizendesk">
+
+  <!-- Süreç değişkenleri için tip tanımları -->
+  <bpmn2:itemDefinition id="_ticketIdItem" structureRef="java.lang.Long"/>
+  <bpmn2:itemDefinition id="_priorityItem" structureRef="java.lang.String"/>
+  <bpmn2:itemDefinition id="_slaDurationItem" structureRef="java.lang.String"/>
+  <bpmn2:itemDefinition id="_needMoreInfoItem" structureRef="java.lang.Boolean"/>
+  <bpmn2:itemDefinition id="_slaBreachedItem" structureRef="java.lang.Boolean"/>
+
+  <bpmn2:process id="ticketFlow" name="Ticket Lifecycle" isExecutable="true">
+
+    <!-- Süreç değişkenleri -->
+    <bpmn2:property id="ticketId" itemSubjectRef="_ticketIdItem"/>
+    <bpmn2:property id="priority" itemSubjectRef="_priorityItem"/>
+    <bpmn2:property id="slaDuration" itemSubjectRef="_slaDurationItem"/>
+    <bpmn2:property id="needMoreInfo" itemSubjectRef="_needMoreInfoItem"/>
+    <bpmn2:property id="slaBreached" itemSubjectRef="_slaBreachedItem"/>
+
+    <!-- Başlangıç: ticket oluşturulunca (TicketCreatedEvent) -->
+    <bpmn2:startEvent id="start" name="Ticket Created">
+      <bpmn2:outgoing>flowStartCalc</bpmn2:outgoing>
+    </bpmn2:startEvent>
+
+    <!-- Calculate SLA: önceliğe göre SLA süresini hesaplar -->
+    <bpmn2:scriptTask id="calcSla" name="Calculate SLA" scriptFormat="http://www.java.com/java">
+      <bpmn2:incoming>flowStartCalc</bpmn2:incoming>
+      <bpmn2:outgoing>flowCalcAssign</bpmn2:outgoing>
+      <bpmn2:script>String p = (String) kcontext.getVariable("priority");
+String dur = "PT8H";
+if ("HIGH".equals(p)) { dur = "PT4H"; } else if ("LOW".equals(p)) { dur = "PT24H"; }
+kcontext.setVariable("slaDuration", dur);
+kcontext.setVariable("slaBreached", Boolean.FALSE);
+System.out.println("[Kogito] SLA hesaplandi: priority=" + p + ", duration=" + dur);</bpmn2:script>
+    </bpmn2:scriptTask>
+
+    <!-- Assign Ticket (Manager grubu) -->
+    <bpmn2:userTask id="assign" name="Assign Ticket">
+      <bpmn2:incoming>flowCalcAssign</bpmn2:incoming>
+      <bpmn2:outgoing>flowAssignInvestigate</bpmn2:outgoing>
+      <bpmn2:ioSpecification>
+        <bpmn2:dataInput id="assignGroupIdInput" name="GroupId"/>
+        <bpmn2:inputSet>
+          <bpmn2:dataInputRefs>assignGroupIdInput</bpmn2:dataInputRefs>
+        </bpmn2:inputSet>
+        <bpmn2:outputSet/>
+      </bpmn2:ioSpecification>
+      <bpmn2:dataInputAssociation>
+        <bpmn2:targetRef>assignGroupIdInput</bpmn2:targetRef>
+        <bpmn2:assignment>
+          <bpmn2:from xsi:type="bpmn2:tFormalExpression">Manager</bpmn2:from>
+          <bpmn2:to xsi:type="bpmn2:tFormalExpression">assignGroupIdInput</bpmn2:to>
+        </bpmn2:assignment>
+      </bpmn2:dataInputAssociation>
+    </bpmn2:userTask>
+
+    <!-- İki yol (atama + müşteri cevabı dönüşü) Investigate'e burada birleşir -->
+    <bpmn2:exclusiveGateway id="joinInvestigate" name="Join" gatewayDirection="Converging">
+      <bpmn2:incoming>flowAssignInvestigate</bpmn2:incoming>
+      <bpmn2:incoming>flowCustomerResponseInvestigate</bpmn2:incoming>
+      <bpmn2:outgoing>flowJoinInvestigate</bpmn2:outgoing>
+    </bpmn2:exclusiveGateway>
+
+    <!-- Investigate Ticket (Agent grubu) — SLA timer buraya bağlı; müşteri beklemeye çıkınca durur -->
+    <bpmn2:userTask id="investigate" name="Investigate Ticket">
+      <bpmn2:incoming>flowJoinInvestigate</bpmn2:incoming>
+      <bpmn2:outgoing>flowInvestigateGateway</bpmn2:outgoing>
+      <bpmn2:ioSpecification>
+        <bpmn2:dataInput id="investigateGroupIdInput" name="GroupId"/>
+        <bpmn2:inputSet>
+          <bpmn2:dataInputRefs>investigateGroupIdInput</bpmn2:dataInputRefs>
+        </bpmn2:inputSet>
+        <bpmn2:outputSet/>
+      </bpmn2:ioSpecification>
+      <bpmn2:dataInputAssociation>
+        <bpmn2:targetRef>investigateGroupIdInput</bpmn2:targetRef>
+        <bpmn2:assignment>
+          <bpmn2:from xsi:type="bpmn2:tFormalExpression">Agent</bpmn2:from>
+          <bpmn2:to xsi:type="bpmn2:tFormalExpression">investigateGroupIdInput</bpmn2:to>
+        </bpmn2:assignment>
+      </bpmn2:dataInputAssociation>
+    </bpmn2:userTask>
+
+    <!-- SLA Timer: süre dolarsa ihlal işaretle (non-interrupting) -->
+    <bpmn2:boundaryEvent id="slaTimer" name="SLA Timer" attachedToRef="investigate" cancelActivity="false">
+      <bpmn2:outgoing>flowTimerBreach</bpmn2:outgoing>
+      <bpmn2:timerEventDefinition>
+        <bpmn2:timeDuration xsi:type="bpmn2:tFormalExpression">#{slaDuration}</bpmn2:timeDuration>
+      </bpmn2:timerEventDefinition>
+    </bpmn2:boundaryEvent>
+
+    <!-- Mark SLA Breached -->
+    <bpmn2:scriptTask id="markBreached" name="Mark SLA Breached" scriptFormat="http://www.java.com/java">
+      <bpmn2:incoming>flowTimerBreach</bpmn2:incoming>
+      <bpmn2:outgoing>flowBreachEnd</bpmn2:outgoing>
+      <bpmn2:script>kcontext.setVariable("slaBreached", Boolean.TRUE);
+System.out.println("[Kogito] SLA IHLALI isaretlendi: ticketId=" + kcontext.getVariable("ticketId"));</bpmn2:script>
+    </bpmn2:scriptTask>
+
+    <bpmn2:endEvent id="endBreach" name="SLA Breached End">
+      <bpmn2:incoming>flowBreachEnd</bpmn2:incoming>
+    </bpmn2:endEvent>
+
+    <!-- Need Additional Info? -->
+    <bpmn2:exclusiveGateway id="needInfoGateway" name="Need Additional Info?" gatewayDirection="Diverging" default="flowGatewayResolve">
+      <bpmn2:incoming>flowInvestigateGateway</bpmn2:incoming>
+      <bpmn2:outgoing>flowGatewayRequestInfo</bpmn2:outgoing>
+      <bpmn2:outgoing>flowGatewayResolve</bpmn2:outgoing>
+    </bpmn2:exclusiveGateway>
+
+    <!-- Request Info From Customer (Agent grubu) -->
+    <bpmn2:userTask id="requestInfo" name="Request Info From Customer">
+      <bpmn2:incoming>flowGatewayRequestInfo</bpmn2:incoming>
+      <bpmn2:outgoing>flowRequestCustomerResponse</bpmn2:outgoing>
+      <bpmn2:ioSpecification>
+        <bpmn2:dataInput id="requestInfoGroupIdInput" name="GroupId"/>
+        <bpmn2:inputSet>
+          <bpmn2:dataInputRefs>requestInfoGroupIdInput</bpmn2:dataInputRefs>
+        </bpmn2:inputSet>
+        <bpmn2:outputSet/>
+      </bpmn2:ioSpecification>
+      <bpmn2:dataInputAssociation>
+        <bpmn2:targetRef>requestInfoGroupIdInput</bpmn2:targetRef>
+        <bpmn2:assignment>
+          <bpmn2:from xsi:type="bpmn2:tFormalExpression">Agent</bpmn2:from>
+          <bpmn2:to xsi:type="bpmn2:tFormalExpression">requestInfoGroupIdInput</bpmn2:to>
+        </bpmn2:assignment>
+      </bpmn2:dataInputAssociation>
+    </bpmn2:userTask>
+
+    <!-- Customer Response (Customer grubu) -> Investigate'e döner -->
+    <bpmn2:userTask id="customerResponse" name="Customer Response">
+      <bpmn2:incoming>flowRequestCustomerResponse</bpmn2:incoming>
+      <bpmn2:outgoing>flowCustomerResponseInvestigate</bpmn2:outgoing>
+      <bpmn2:ioSpecification>
+        <bpmn2:dataInput id="customerResponseGroupIdInput" name="GroupId"/>
+        <bpmn2:inputSet>
+          <bpmn2:dataInputRefs>customerResponseGroupIdInput</bpmn2:dataInputRefs>
+        </bpmn2:inputSet>
+        <bpmn2:outputSet/>
+      </bpmn2:ioSpecification>
+      <bpmn2:dataInputAssociation>
+        <bpmn2:targetRef>customerResponseGroupIdInput</bpmn2:targetRef>
+        <bpmn2:assignment>
+          <bpmn2:from xsi:type="bpmn2:tFormalExpression">Customer</bpmn2:from>
+          <bpmn2:to xsi:type="bpmn2:tFormalExpression">customerResponseGroupIdInput</bpmn2:to>
+        </bpmn2:assignment>
+      </bpmn2:dataInputAssociation>
+    </bpmn2:userTask>
+
+    <!-- Resolve Ticket -->
+    <bpmn2:scriptTask id="resolve" name="Resolve Ticket" scriptFormat="http://www.java.com/java">
+      <bpmn2:incoming>flowGatewayResolve</bpmn2:incoming>
+      <bpmn2:outgoing>flowResolveClose</bpmn2:outgoing>
+      <bpmn2:script>System.out.println("[Kogito] Ticket cozuldu (RESOLVED): ticketId=" + kcontext.getVariable("ticketId"));</bpmn2:script>
+    </bpmn2:scriptTask>
+
+    <!-- Close Ticket (Agent grubu) -->
+    <bpmn2:userTask id="close" name="Close Ticket">
+      <bpmn2:incoming>flowResolveClose</bpmn2:incoming>
+      <bpmn2:outgoing>flowCloseEnd</bpmn2:outgoing>
+      <bpmn2:ioSpecification>
+        <bpmn2:dataInput id="closeGroupIdInput" name="GroupId"/>
+        <bpmn2:inputSet>
+          <bpmn2:dataInputRefs>closeGroupIdInput</bpmn2:dataInputRefs>
+        </bpmn2:inputSet>
+        <bpmn2:outputSet/>
+      </bpmn2:ioSpecification>
+      <bpmn2:dataInputAssociation>
+        <bpmn2:targetRef>closeGroupIdInput</bpmn2:targetRef>
+        <bpmn2:assignment>
+          <bpmn2:from xsi:type="bpmn2:tFormalExpression">Agent</bpmn2:from>
+          <bpmn2:to xsi:type="bpmn2:tFormalExpression">closeGroupIdInput</bpmn2:to>
+        </bpmn2:assignment>
+      </bpmn2:dataInputAssociation>
+    </bpmn2:userTask>
+
+    <bpmn2:endEvent id="end" name="Process Completed">
+      <bpmn2:incoming>flowCloseEnd</bpmn2:incoming>
+    </bpmn2:endEvent>
+
+    <!-- Sequence flows -->
+    <bpmn2:sequenceFlow id="flowStartCalc" sourceRef="start" targetRef="calcSla"/>
+    <bpmn2:sequenceFlow id="flowCalcAssign" sourceRef="calcSla" targetRef="assign"/>
+    <bpmn2:sequenceFlow id="flowAssignInvestigate" sourceRef="assign" targetRef="joinInvestigate"/>
+    <bpmn2:sequenceFlow id="flowJoinInvestigate" sourceRef="joinInvestigate" targetRef="investigate"/>
+    <bpmn2:sequenceFlow id="flowInvestigateGateway" sourceRef="investigate" targetRef="needInfoGateway"/>
+    <bpmn2:sequenceFlow id="flowTimerBreach" sourceRef="slaTimer" targetRef="markBreached"/>
+    <bpmn2:sequenceFlow id="flowBreachEnd" sourceRef="markBreached" targetRef="endBreach"/>
+    <bpmn2:sequenceFlow id="flowGatewayRequestInfo" sourceRef="needInfoGateway" targetRef="requestInfo">
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression" language="http://www.java.com/java">return Boolean.TRUE.equals(needMoreInfo);</bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+    <bpmn2:sequenceFlow id="flowGatewayResolve" sourceRef="needInfoGateway" targetRef="resolve"/>
+    <bpmn2:sequenceFlow id="flowRequestCustomerResponse" sourceRef="requestInfo" targetRef="customerResponse"/>
+    <bpmn2:sequenceFlow id="flowCustomerResponseInvestigate" sourceRef="customerResponse" targetRef="joinInvestigate"/>
+    <bpmn2:sequenceFlow id="flowResolveClose" sourceRef="resolve" targetRef="close"/>
+    <bpmn2:sequenceFlow id="flowCloseEnd" sourceRef="close" targetRef="end"/>
+
+  </bpmn2:process>
+</bpmn2:definitions>

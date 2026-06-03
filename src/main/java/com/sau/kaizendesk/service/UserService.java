@@ -16,9 +16,11 @@ import org.springframework.security.oauth2.jwt.Jwt;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final EmailService emailService;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, EmailService emailService) {
         this.userRepository = userRepository;
+        this.emailService = emailService;
     }
 
     @Transactional
@@ -57,7 +59,15 @@ public class UserService {
             user.setRole(role);
             changed = true;
         }
-        if (user.getId() == null || changed) {
+        if (user.getId() == null) {
+            user = userRepository.save(user);
+            emailService.send(
+                    user.getEmail(),
+                    "KaizenDesk'e Hoş Geldiniz",
+                    "Hesabınız Oluşturuldu",
+                    "Merhaba " + user.getName() + ", KaizenDesk hesabınız başarıyla oluşturuldu. Sisteme giriş yapabilirsiniz."
+            );
+        } else if (changed) {
             user = userRepository.save(user);
         }
 
