@@ -51,7 +51,6 @@ KaizenDesk, şirketlerin müşteri destek taleplerini uçtan uca yönetmesini sa
 ### Altyapı
 - **Docker Compose** — tüm servisler konteynerize
 - **OpenLDAP** — kullanıcı dizini
-- **MailHog** — geliştirme ortamı e-posta sunucusu
 - **OpenSearch** — log yönetimi
 - **Jaeger** — dağıtık izleme
 - **Fluent Bit** — log toplama
@@ -162,9 +161,9 @@ Sisteme girmek için Keycloak'ta tanımlı kullanıcıları kullanın:
 
 | Kullanıcı | Şifre | Rol |
 |---|---|---|
-| `customer1` | `customer1` | Müşteri |
-| `agent1` | `agent1` | Ajan |
-| `manager1` | `manager1` | Yönetici |
+| `customer1` | `customer123` | Müşteri |
+| `agent1` | `agent123` | Ajan |
+| `manager` | `manager123` | Yönetici |
 
 ---
 
@@ -200,10 +199,12 @@ GEMINI_API_KEY=your-api-key
 |---|---|---|
 | 🌐 Frontend | http://localhost:3000 | Ana uygulama |
 | 🔐 Keycloak | http://localhost:8081 | Kimlik yönetimi (admin/admin) |
-| 📧 MailHog | http://localhost:8025 | Test e-postalarını görüntüle |
 | 📊 OpenSearch | http://localhost:5601 | Log dashboard |
 | 🔍 Jaeger | http://localhost:16686 | Dağıtık izleme |
+| 📈 Grafana | http://localhost:3001 | Metrik dashboard (admin/admin) |
+| 🎯 Prometheus | http://localhost:9090 | Metrik toplama |
 | 🗄️ API | http://localhost:8080 | REST API |
+| 📖 Swagger UI | http://localhost:8080/swagger-ui.html | API dokümantasyonu |
 
 ---
 
@@ -253,6 +254,18 @@ kaizendesk/
 ```bash
 ./mvnw test
 ```
+
+---
+
+## 📚 Javadoc Üretme
+
+Kod dokümantasyonunu HTML olarak üretmek için:
+
+```bash
+./mvnw javadoc:javadoc
+```
+
+Üretilen doküman: `target/site/apidocs/index.html`
 
 ---
 

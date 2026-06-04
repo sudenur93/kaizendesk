@@ -1,0 +1,79 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Toplam HTTP İstek (rate/s)",
+      "type": "stat",
+      "targets": [ { "expr": "sum(rate(http_server_requests_seconds_count{application=\"kaizendesk\"}[1m]))", "refId": "A" } ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Ortalama Yanıt Süresi",
+      "type": "stat",
+      "targets": [ { "expr": "sum(rate(http_server_requests_seconds_sum{application=\"kaizendesk\"}[1m]))/sum(rate(http_server_requests_seconds_count{application=\"kaizendesk\"}[1m]))", "refId": "A" } ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "unit": "short", "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Hata Sayısı (5xx, rate/s)",
+      "type": "stat",
+      "targets": [ { "expr": "sum(rate(http_server_requests_seconds_count{application=\"kaizendesk\",status=~\"5..\"}[1m]))", "refId": "A" } ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "unit": "bytes" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "JVM Kullanılan Bellek",
+      "type": "stat",
+      "targets": [ { "expr": "sum(jvm_memory_used_bytes{application=\"kaizendesk\"})", "refId": "A" } ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }, "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 6 },
+      "id": 5,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "title": "Endpoint Bazında İstek Hızı",
+      "type": "timeseries",
+      "targets": [ { "expr": "sum by (uri) (rate(http_server_requests_seconds_count{application=\"kaizendesk\"}[1m]))", "legendFormat": "{{uri}}", "refId": "A" } ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }, "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 6 },
+      "id": 6,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "title": "HTTP Durum Kodlarına Göre İstekler",
+      "type": "timeseries",
+      "targets": [ { "expr": "sum by (status) (rate(http_server_requests_seconds_count{application=\"kaizendesk\"}[1m]))", "legendFormat": "{{status}}", "refId": "A" } ]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "tags": ["kaizendesk"],
+  "templating": { "list": [] },
+  "time": { "from": "now-15m", "to": "now" },
+  "timezone": "browser",
+  "title": "KaizenDesk — Genel Bakış",
+  "uid": "kaizendesk-overview",
+  "version": 1
+}

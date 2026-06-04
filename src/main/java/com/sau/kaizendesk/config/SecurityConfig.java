@@ -28,6 +28,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  *
  * Herkese açık endpoint'ler:
  *   /actuator/health, /actuator/info   → sağlık kontrolü (Docker healthcheck)
+ *   /actuator/prometheus               → Prometheus metrik toplama
  *   /swagger-ui/**, /v3/api-docs/**    → API dökümantasyonu
  *   /api/v1/public/**                  → giriş gerektirmeyen istatistikler
  *
@@ -50,6 +51,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/actuator/health",
                                 "/actuator/info",
+                                "/actuator/prometheus",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**",
