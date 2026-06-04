@@ -1,4 +1,4 @@
-# KaizenDesk — Helpdesk & Ticket Yönetim Sistemi
+# KaizenDesk — IT & Ticket Yönetim Sistemi
 
 KaizenDesk, şirketlerin müşteri destek taleplerini uçtan uca yönetmesini sağlayan modern bir helpdesk platformudur. Müşteriler destek talebi oluşturur, ajanlar talepleri çözer, yöneticiler süreci takip eder.
 
