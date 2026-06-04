@@ -4,7 +4,7 @@ KaizenDesk, şirketlerin müşteri destek taleplerini uçtan uca yönetmesini sa
 
 ---
 
-## 🎯 Ne İşe Yarar?
+## Ne İşe Yarar?
 
 - Müşteri bir sorun yaşadığında sisteme **destek talebi** açar
 - Yönetici talebi uygun **ajana atar**
@@ -15,26 +15,26 @@ KaizenDesk, şirketlerin müşteri destek taleplerini uçtan uca yönetmesini sa
 
 ---
 
-## ✨ Özellikler
+## Özellikler
 
 | Özellik | Açıklama |
 |---|---|
-| 🎫 Ticket Yönetimi | Oluşturma, atama, durum takibi, kapatma |
-| 👥 3 Farklı Rol | Müşteri, Ajan, Yönetici |
-| ⏱️ SLA Takibi | Önceliğe göre çözüm süresi, ihlal uyarısı |
-| 📧 E-posta Bildirimleri | Her durum değişikliğinde otomatik mail |
-| 📎 Dosya Ekleri | Ticket'a dosya yükleme |
-| 💬 Yorumlar & İç Notlar | Müşteriye görünmeyen dahili notlar |
-| ⏳ Worklog | Harcanan süre kaydı |
-| 🤖 AI Asistan | Gemini ile akıllı destek |
-| 📊 Dashboard | Özet istatistikler ve grafikler |
-| 🔄 BPMN İş Akışı | jBPM 10 (Kogito) ile ticket yaşam döngüsü |
-| 🔍 Gözlemlenebilirlik | Prometheus, Jaeger, OpenSearch ile izleme |
-| 🌙 Dark/Light Tema | Tam tema desteği |
+| Ticket Yönetimi | Oluşturma, atama, durum takibi, kapatma |
+| 3 Farklı Rol | Müşteri, Ajan, Yönetici |
+| SLA Takibi | Önceliğe göre çözüm süresi, ihlal uyarısı |
+| E-posta Bildirimleri | Her durum değişikliğinde otomatik mail |
+| Dosya Ekleri | Ticket'a dosya yükleme |
+| Yorumlar & İç Notlar | Müşteriye görünmeyen dahili notlar |
+| Worklog | Harcanan süre kaydı |
+| AI Asistan | Gemini ile akıllı destek |
+| Dashboard | Özet istatistikler ve grafikler |
+| BPMN İş Akışı | jBPM 10 (Kogito) ile ticket yaşam döngüsü |
+| Gözlemlenebilirlik | Prometheus, Jaeger, OpenSearch ile izleme |
+| Dark/Light Tema | Tam tema desteği |
 
 ---
 
-## 🛠️ Teknoloji Yığını
+## Teknoloji Yığını
 
 ### Backend
 - **Java 21** + **Spring Boot 3.4**
@@ -57,7 +57,7 @@ KaizenDesk, şirketlerin müşteri destek taleplerini uçtan uca yönetmesini sa
 
 ---
 
-## 🏗️ Mimari
+## Mimari
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -95,7 +95,7 @@ Oluşturuldu → SLA Hesapla → Atama Bekliyor (Manager)
 
 ---
 
-## 🚀 Kurulum ve Çalıştırma
+## Kurulum ve Çalıştırma
 
 ### Gereksinimler
 
@@ -155,7 +155,7 @@ http://localhost:3000
 
 ---
 
-## 👤 Demo Kullanıcıları
+## Demo Kullanıcıları
 
 Sisteme girmek için Keycloak'ta tanımlı kullanıcıları kullanın:
 
@@ -167,7 +167,7 @@ Sisteme girmek için Keycloak'ta tanımlı kullanıcıları kullanın:
 
 ---
 
-## 🔧 Yapılandırma (İsteğe Bağlı)
+## Yapılandırma (İsteğe Bağlı)
 
 ### E-posta Gönderimi
 
@@ -193,22 +193,22 @@ GEMINI_API_KEY=your-api-key
 
 ---
 
-## 📡 Servis Adresleri
+## Servis Adresleri
 
 | Servis | Adres | Açıklama |
 |---|---|---|
-| 🌐 Frontend | http://localhost:3000 | Ana uygulama |
-| 🔐 Keycloak | http://localhost:8081 | Kimlik yönetimi (admin/admin) |
-| 📊 OpenSearch | http://localhost:5601 | Log dashboard |
-| 🔍 Jaeger | http://localhost:16686 | Dağıtık izleme |
-| 📈 Grafana | http://localhost:3001 | Metrik dashboard (admin/admin) |
-| 🎯 Prometheus | http://localhost:9090 | Metrik toplama |
-| 🗄️ API | http://localhost:8080 | REST API |
-| 📖 Swagger UI | http://localhost:8080/swagger-ui.html | API dokümantasyonu |
+| Frontend | http://localhost:3000 | Ana uygulama |
+| Keycloak | http://localhost:8081 | Kimlik yönetimi (admin/admin) |
+| OpenSearch | http://localhost:5601 | Log dashboard |
+| Jaeger | http://localhost:16686 | Dağıtık izleme |
+| Grafana | http://localhost:3001 | Metrik dashboard (admin/admin) |
+| Prometheus | http://localhost:9090 | Metrik toplama |
+| API | http://localhost:8080 | REST API |
+| Swagger UI | http://localhost:8080/swagger-ui.html | API dokümantasyonu |
 
 ---
 
-## 🛑 Durdurma
+## Durdurma
 
 ```bash
 docker-compose down
@@ -222,7 +222,7 @@ docker-compose down -v
 
 ---
 
-## 📁 Proje Yapısı
+## Proje Yapısı
 
 ```
 kaizendesk/
@@ -249,7 +249,7 @@ kaizendesk/
 
 ---
 
-## 🧪 Testleri Çalıştırma
+## Testleri Çalıştırma
 
 ```bash
 ./mvnw test
@@ -257,7 +257,7 @@ kaizendesk/
 
 ---
 
-## 📚 Javadoc Üretme
+## Javadoc Üretme
 
 Kod dokümantasyonunu HTML olarak üretmek için:
 
@@ -266,9 +266,3 @@ Kod dokümantasyonunu HTML olarak üretmek için:
 ```
 
 Üretilen doküman: `target/site/apidocs/index.html`
-
----
-
-## 📄 Lisans
-
-Bu proje SAÜ Bilgisayar Mühendisliği kapsamında geliştirilmiştir.
