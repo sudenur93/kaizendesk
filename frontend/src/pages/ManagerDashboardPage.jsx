@@ -113,6 +113,12 @@ function fmtRelative(isoStr) {
   return `${Math.floor(diff / 86400)} gün önce`;
 }
 
+function toDateParam(date) {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
 const DATE_PRESETS = [
   { key: '7', label: 'Son 7 gün' },
   { key: '30', label: 'Son 30 gün' },
@@ -163,8 +169,8 @@ export default function ManagerDashboardPage() {
   const { from, to } = useMemo(() => {
     const t = new Date();
     const f = new Date();
-    f.setDate(f.getDate() - parseInt(rangeDays, 10));
-    return { from: f.toISOString().slice(0, 10), to: t.toISOString().slice(0, 10) };
+    f.setDate(f.getDate() - parseInt(rangeDays, 10) + 1);
+    return { from: toDateParam(f), to: toDateParam(t) };
   }, [rangeDays]);
 
   useEffect(() => {

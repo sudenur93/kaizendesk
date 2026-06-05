@@ -9,6 +9,7 @@ import com.sau.kaizendesk.repository.TicketRepository;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,16 +35,21 @@ public class DashboardService {
 
     public DashboardSummaryResponse getSummary(LocalDate from, LocalDate to) {
         List<Ticket> all = ticketRepository.findAll();
+        Instant rangeStart = from != null ? from.atStartOfDay().toInstant(ZoneOffset.UTC) : null;
+        Instant rangeEnd = to != null ? to.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC) : null;
+        List<Ticket> periodTickets = all.stream()
+                .filter(t -> isInRange(t.getCreatedAt(), rangeStart, rangeEnd))
+                .toList();
 
         DashboardSummaryResponse resp = new DashboardSummaryResponse();
 
-        resp.setTotalTickets(all.size());
+        resp.setTotalTickets(periodTickets.size());
 
-        long newCount = countByStatus(all, TicketStatus.NEW);
-        long inProgress = countByStatus(all, TicketStatus.IN_PROGRESS);
-        long waiting = countByStatus(all, TicketStatus.WAITING_FOR_CUSTOMER);
-        long resolved = countByStatus(all, TicketStatus.RESOLVED);
-        long closed = countByStatus(all, TicketStatus.CLOSED);
+        long newCount = countByStatus(periodTickets, TicketStatus.NEW);
+        long inProgress = countByStatus(periodTickets, TicketStatus.IN_PROGRESS);
+        long waiting = countByStatus(periodTickets, TicketStatus.WAITING_FOR_CUSTOMER);
+        long resolved = countByStatus(periodTickets, TicketStatus.RESOLVED);
+        long closed = countByStatus(periodTickets, TicketStatus.CLOSED);
 
         resp.setOpenTickets(newCount);
         resp.setInProgressTickets(inProgress);
@@ -59,14 +65,14 @@ public class DashboardService {
         statusCounts.put("CLOSED", closed);
         resp.setStatusCounts(statusCounts);
 
-        Map<String, Long> priorityCounts = all.stream()
+        Map<String, Long> priorityCounts = periodTickets.stream()
                 .collect(Collectors.groupingBy(
                         t -> t.getPriority().name(),
                         LinkedHashMap::new,
                         Collectors.counting()));
         resp.setPriorityCounts(priorityCounts);
 
-        Map<String, Long> productCounts = all.stream()
+        Map<String, Long> productCounts = periodTickets.stream()
                 .filter(t -> t.getProduct() != null)
                 .collect(Collectors.groupingBy(
                         t -> t.getProduct().getName(),
@@ -76,12 +82,12 @@ public class DashboardService {
 
         Instant now = Instant.now();
 
-        long slaBreached = all.stream().filter(t -> SlaEvaluator.isBreached(t, now)).count();
+        long slaBreached = periodTickets.stream().filter(t -> SlaEvaluator.isBreached(t, now)).count();
         resp.setSlaBreachedCount(slaBreached);
 
         // SLA uyumu — dashboard "SLA Performansı" ile aynı tanım:
         // açık (RESOLVED/CLOSED olmayan) talepler içinde henüz ihlal etmeyenlerin oranı.
-        List<Ticket> openTickets = all.stream()
+        List<Ticket> openTickets = periodTickets.stream()
                 .filter(t -> !DONE_STATUSES.contains(t.getStatus()))
                 .toList();
         long openTotal = openTickets.size();
@@ -97,35 +103,33 @@ public class DashboardService {
                 .count();
         resp.setClosedToday(closedToday);
 
-        Instant rangeStart = from != null ? from.atStartOfDay().toInstant(ZoneOffset.UTC) : null;
-        Instant rangeEnd = to != null ? to.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC) : null;
         long closedInRange = all.stream()
                 .filter(t -> t.getClosedAt() != null)
-                .filter(t -> rangeStart == null || !t.getClosedAt().isBefore(rangeStart))
-                .filter(t -> rangeEnd == null || t.getClosedAt().isBefore(rangeEnd))
+                .filter(t -> isInRange(t.getClosedAt(), rangeStart, rangeEnd))
                 .count();
         resp.setClosedInRange(closedInRange);
 
         all.stream()
                 .filter(t -> t.getResolvedAt() != null)
+                .filter(t -> isInRange(t.getResolvedAt(), rangeStart, rangeEnd))
                 .mapToLong(t -> java.time.Duration.between(t.getCreatedAt(), t.getResolvedAt()).toMinutes())
                 .average()
                 .ifPresentOrElse(
                         avg -> resp.setAvgResolutionMinutes(Math.round(avg)),
                         () -> resp.setAvgResolutionMinutes(null));
 
-        resp.setAgentPerformances(buildAgentPerformances(all));
-        resp.setDailyCreatedCounts(dailyCounts(all, 14, Ticket::getCreatedAt));
-        resp.setDailyClosedCounts(dailyCounts(all, 14, Ticket::getResolvedAt));
+        resp.setAgentPerformances(buildAgentPerformances(all, rangeStart, rangeEnd));
+        DateWindow chartWindow = chartWindow(from, to);
+        resp.setDailyCreatedCounts(dailyCounts(all, chartWindow.start(), chartWindow.days(), Ticket::getCreatedAt));
+        resp.setDailyClosedCounts(dailyCounts(all, chartWindow.start(), chartWindow.days(), Ticket::getResolvedAt));
 
         return resp;
     }
 
-    private List<DailyCount> dailyCounts(List<Ticket> all, int days, Function<Ticket, Instant> dateOf) {
-        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+    private List<DailyCount> dailyCounts(List<Ticket> all, LocalDate startDate, int days, Function<Ticket, Instant> dateOf) {
         List<DailyCount> result = new ArrayList<>(days);
-        for (int i = days - 1; i >= 0; i--) {
-            LocalDate day = today.minusDays(i);
+        for (int i = 0; i < days; i++) {
+            LocalDate day = startDate.plusDays(i);
             Instant start = day.atStartOfDay().toInstant(ZoneOffset.UTC);
             Instant end = day.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
             long count = all.stream()
@@ -140,11 +144,27 @@ public class DashboardService {
         return result;
     }
 
+    private DateWindow chartWindow(LocalDate from, LocalDate to) {
+        LocalDate end = to != null ? to : LocalDate.now(ZoneOffset.UTC);
+        LocalDate start = from != null ? from : end.minusDays(13);
+        if (start.isAfter(end)) {
+            start = end;
+        }
+        long days = ChronoUnit.DAYS.between(start, end) + 1;
+        return new DateWindow(start, (int) Math.max(1, days));
+    }
+
+    private boolean isInRange(Instant value, Instant rangeStart, Instant rangeEnd) {
+        return value != null
+                && (rangeStart == null || !value.isBefore(rangeStart))
+                && (rangeEnd == null || value.isBefore(rangeEnd));
+    }
+
     private long countByStatus(List<Ticket> tickets, TicketStatus status) {
         return tickets.stream().filter(t -> t.getStatus() == status).count();
     }
 
-    private List<AgentPerformance> buildAgentPerformances(List<Ticket> all) {
+    private List<AgentPerformance> buildAgentPerformances(List<Ticket> all, Instant rangeStart, Instant rangeEnd) {
         Map<Long, List<Ticket>> byAgent = all.stream()
                 .filter(t -> t.getAssignedAgent() != null)
                 .collect(Collectors.groupingBy(t -> t.getAssignedAgent().getId()));
@@ -157,28 +177,38 @@ public class DashboardService {
             AgentPerformance ap = new AgentPerformance();
             ap.setAgentId(entry.getKey());
             ap.setAgentName(sample.getAssignedAgent().getName());
-            ap.setAssignedCount(tickets.size());
+            ap.setAssignedCount(tickets.stream()
+                    .filter(t -> isInRange(t.getCreatedAt(), rangeStart, rangeEnd))
+                    .count());
 
             long resolvedOrClosed = tickets.stream()
                     .filter(t -> t.getStatus() == TicketStatus.RESOLVED || t.getStatus() == TicketStatus.CLOSED)
+                    .filter(t -> isInRange(t.getResolvedAt(), rangeStart, rangeEnd))
                     .count();
             ap.setResolvedCount(resolvedOrClosed);
 
             long closedCount = tickets.stream()
                     .filter(t -> t.getStatus() == TicketStatus.CLOSED)
+                    .filter(t -> isInRange(t.getClosedAt(), rangeStart, rangeEnd))
                     .count();
             ap.setClosedCount(closedCount);
 
             tickets.stream()
                     .filter(t -> t.getResolvedAt() != null)
+                    .filter(t -> isInRange(t.getResolvedAt(), rangeStart, rangeEnd))
                     .mapToLong(t -> java.time.Duration.between(t.getCreatedAt(), t.getResolvedAt()).toMinutes())
                     .average()
                     .ifPresentOrElse(
                             avg -> ap.setAvgResolutionMinutes(Math.round(avg)),
                             () -> ap.setAvgResolutionMinutes(null));
 
-            result.add(ap);
+            if (ap.getAssignedCount() > 0 || ap.getResolvedCount() > 0 || ap.getClosedCount() > 0) {
+                result.add(ap);
+            }
         }
         return result;
+    }
+
+    private record DateWindow(LocalDate start, int days) {
     }
 }
