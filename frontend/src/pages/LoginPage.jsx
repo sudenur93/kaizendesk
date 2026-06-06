@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Ic from '../components/Icons';
-import { login } from '../services/api';
+import { login, notifyLoginFailed } from '../services/api';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -37,6 +37,7 @@ export default function LoginPage() {
         const newCount = failCount + 1;
         setFailCount(newCount);
         if (newCount >= 3) {
+          notifyLoginFailed(email.trim()).catch(() => {});
           setStep(2);
           setError('');
         } else {
@@ -237,7 +238,7 @@ export default function LoginPage() {
             <div className="eyebrow"><Ic.Lock size={11} /> İki Faktörlü Doğrulama</div>
             <h1>Kimliğinizi doğrulayın</h1>
             <p className="sub">
-              Hesabınızda 2FA aktifse Google Authenticator veya benzeri bir uygulamadan 6 haneli kodu girin.
+              Hesap güvenliği için kimlik doğrulama uygulamanızdan 6 haneli kodu girin.
             </p>
 
             {error && (
@@ -263,11 +264,12 @@ export default function LoginPage() {
                     placeholder="123456" maxLength={6}
                     value={totp} onChange={(e) => setTotp(e.target.value.replace(/\D/g, ''))}
                     disabled={loading} autoFocus
+                    required
                     style={{ letterSpacing: '0.3em', fontSize: 18, textAlign: 'center' }}
                   />
                 </div>
                 <div className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>
-                  2FA kurulu değilse boş bırakıp devam edebilirsiniz.
+                  Doğrulama kodu zorunludur.
                 </div>
               </div>
 

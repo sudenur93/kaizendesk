@@ -127,11 +127,21 @@ export async function login(username, password, totp = '', remember = true) {
   return { token, role, username: payload.preferred_username, name: payload.name };
 }
 
+/**
+ * 3 başarısız giriş denemesi sonrası güvenlik uyarısı tetikler.
+ * Kullanıcı sistemi tarafından tanınıyorsa e-posta bildirimi gönderilir.
+ */
+export async function notifyLoginFailed(usernameOrEmail) {
+  if (!usernameOrEmail) return;
+  await axios.post(`${API_BASE}/public/security/login-failed`, { usernameOrEmail });
+}
+
 const KEYCLOAK_ADMIN_REALM = _KC_URL ? `${_KC_URL}/admin/realms/kaizendesk` : '/auth/admin/realms/kaizendesk';
 
 /**
  * Keycloak Admin API aracılığıyla yeni kullanıcı kaydı oluşturur.
- * Kullanıcı enabled:false ile oluşturulur — manager onayı bekleniyor durumu.
+ * AGENT başvuruları enabled:false olarak açılır (manager onayı gerekir).
+ * CUSTOMER hesapları enabled:true olarak aktif açılır.
  * Onay sonrası approveUser() ile enabled:true yapılır.
  * Kayıt sonrası kullanıcıya rol atanır (varsayılan: CUSTOMER).
  */
@@ -156,7 +166,7 @@ export async function register(username, password, email, firstName, lastName, r
       email,
       firstName,
       lastName,
-      enabled: false, // admin onayı bekliyor
+      enabled: role !== 'AGENT',
       emailVerified: true,
       credentials: [{ type: 'password', value: password, temporary: false }],
     },
