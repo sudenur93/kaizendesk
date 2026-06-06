@@ -4,6 +4,7 @@ import com.sau.kaizendesk.domain.entity.User;
 import com.sau.kaizendesk.domain.enums.UserRole;
 import com.sau.kaizendesk.dto.UserResponse;
 import com.sau.kaizendesk.repository.UserRepository;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -21,10 +22,16 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final EmailService emailService;
+    private final KeycloakAccountService keycloakAccountService;
 
-    public UserService(UserRepository userRepository, EmailService emailService) {
+    public UserService(
+            UserRepository userRepository,
+            EmailService emailService,
+            KeycloakAccountService keycloakAccountService
+    ) {
         this.userRepository = userRepository;
         this.emailService = emailService;
+        this.keycloakAccountService = keycloakAccountService;
     }
 
     @Transactional
@@ -49,6 +56,10 @@ public class UserService {
             created.setRole(role);
             return created;
         });
+
+        if (user.getDeletedAt() != null) {
+            throw new IllegalArgumentException("Hesap bulunamadı");
+        }
 
         boolean changed = false;
         if (user.getName() == null || !user.getName().equals(fullName)) {
@@ -89,6 +100,7 @@ public class UserService {
         List<UserRole> agentRoles = List.of(UserRole.AGENT, UserRole.MANAGER);
         return agentRoles.stream()
                 .flatMap(role -> userRepository.findByRole(role).stream())
+                .filter(u -> u.getDeletedAt() == null)
                 .map(u -> {
                     UserResponse r = new UserResponse();
                     r.setId(u.getId());
@@ -127,7 +139,7 @@ public class UserService {
                 ? userRepository.findByEmailIgnoreCase(normalized)
                 : userRepository.findByUsername(normalized);
         userOpt.ifPresent(user -> {
-            if (user.getEmail() == null || user.getEmail().isBlank()) {
+            if (user.getDeletedAt() != null || user.getEmail() == null || user.getEmail().isBlank()) {
                 return;
             }
             emailService.send(
@@ -141,6 +153,51 @@ public class UserService {
             log.warn("Başarısız giriş denemesi uyarısı gönderildi: username={}, email={}",
                     user.getUsername(), user.getEmail());
         });
+    }
+
+    @Transactional
+    public void softDeleteCurrentAccount(Jwt jwt) {
+        if (jwt == null) {
+            throw new IllegalArgumentException("jwt is required");
+        }
+        String username = jwt.getClaimAsString("preferred_username");
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("preferred_username claim is missing");
+        }
+        if (resolveRole(jwt) != UserRole.CUSTOMER) {
+            throw new IllegalArgumentException("Yalnızca müşteri hesapları silinebilir.");
+        }
+
+        User user = userRepository.findByUsername(username).orElse(null);
+        if (user != null && user.getDeletedAt() != null) {
+            throw new IllegalArgumentException("Hesap zaten silinmiş.");
+        }
+
+        String originalEmail = user != null ? user.getEmail() : jwt.getClaimAsString("email");
+        String originalName = user != null ? user.getName() : resolveFullName(jwt, username);
+
+        if (user != null) {
+            user.setDeletedAt(Instant.now());
+            user.setName("Silinmiş Kullanıcı");
+            user.setEmail("deleted-" + user.getId() + "@removed.kaizendesk.local");
+            userRepository.save(user);
+        }
+
+        keycloakAccountService.disableUser(username);
+
+        if (originalEmail != null && !originalEmail.isBlank()) {
+            emailService.send(
+                    originalEmail,
+                    "KaizenDesk Hesap Silme Onayı",
+                    "Hesabınız devre dışı bırakıldı",
+                    "Merhaba " + originalName
+                            + ", KaizenDesk hesabınız soft delete ile kapatıldı. "
+                            + "Geçmiş destek talepleriniz anonim olarak saklanmaya devam edecektir."
+            );
+        }
+
+        log.warn("Müşteri hesabı soft delete ile kapatıldı: username={}, userId={}",
+                username, user != null ? user.getId() : null);
     }
 
     private static String resolveFullName(Jwt jwt, String fallbackUsername) {

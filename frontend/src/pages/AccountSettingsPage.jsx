@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Ic from '../components/Icons';
-import { Avatar, getInitials } from '../components/Common';
-import { getCurrentUserProfile, updateUserProfile, changePassword, getName, getRole } from '../services/api';
+import { getInitials } from '../components/Common';
+import { getCurrentUserProfile, updateUserProfile, changePassword, deleteMyAccount, logout, getName, getRole } from '../services/api';
 
 const AVATAR_COLORS = [
   '#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
@@ -65,11 +65,15 @@ export default function AccountSettingsPage() {
 
   const [avatarColor, setAvatarColor] = useState(readAvatarColor);
   const [notifPrefs, setNotifPrefs] = useState(readNotifPrefs);
+  const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteMsg, setDeleteMsg] = useState(null);
 
   const displayName = getName() || '';
   const initials = getInitials(displayName);
   const role = getRole();
   const roleLabel = role === 'MANAGER' ? 'Yönetici' : role === 'AGENT' ? 'Destek Uzmanı' : 'Müşteri';
+  const deleteConfirmed = deleteConfirm.trim().toLocaleUpperCase('tr-TR') === 'SİL';
 
   useEffect(() => {
     getCurrentUserProfile()
@@ -135,6 +139,26 @@ export default function AccountSettingsPage() {
       localStorage.setItem(key, next[key] ? '1' : '0');
       return next;
     });
+  }
+
+  async function handleDeleteAccount() {
+    setDeleteMsg(null);
+    if (!deleteConfirmed) {
+      setDeleteMsg({ type: 'error', text: 'Onaylamak için kutuya SİL yazın.' });
+      return;
+    }
+    setDeleteLoading(true);
+    try {
+      await deleteMyAccount();
+      logout();
+    } catch (err) {
+      setDeleteMsg({
+        type: 'error',
+        text: 'Hesap silinemedi. ' + (err.response?.data?.errorMessage || err.message || ''),
+      });
+    } finally {
+      setDeleteLoading(false);
+    }
   }
 
   return (
@@ -325,6 +349,48 @@ export default function AccountSettingsPage() {
 
         </div>
       </div>
+
+      {role === 'CUSTOMER' && (
+        <div className="card" style={{ marginTop: 24, overflow: 'hidden', borderColor: 'rgba(200,32,42,0.25)' }}>
+          <div className="card-head" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="ic"><Ic.AlertTriangle size={15} /></span>
+            <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--p-high)' }}>Hesabı Sil</span>
+          </div>
+          <div style={{ padding: 20 }}>
+            <Msg msg={deleteMsg} />
+            <p className="muted" style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 16 }}>
+              Hesabınız kapatılır: giriş yapamazsınız, kişisel bilgileriniz anonimleştirilir.
+              Geçmiş destek talepleriniz sistemde kalır.
+            </p>
+            <div className="field" style={{ maxWidth: 280, marginBottom: 16 }}>
+              <label className="field-label">Onaylamak için SİL yazın</label>
+              <input
+                className="input"
+                type="text"
+                value={deleteConfirm}
+                onChange={(e) => setDeleteConfirm(e.target.value)}
+                placeholder="SİL"
+                disabled={deleteLoading}
+              />
+            </div>
+            <button
+              type="button"
+              className="btn"
+              style={{
+                gap: 6,
+                background: 'var(--p-high)',
+                color: '#fff',
+                border: 'none',
+              }}
+              disabled={deleteLoading || !deleteConfirmed}
+              onClick={handleDeleteAccount}
+            >
+              <Ic.AlertTriangle size={13} />
+              {deleteLoading ? 'Siliniyor…' : 'Hesabımı Kapat'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

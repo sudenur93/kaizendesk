@@ -49,6 +49,11 @@ kaizendesk:
     max-file-size-bytes: 10485760
   mail:
     from: ${SMTP_FROM:no-reply@kaizendesk.local}
+  keycloak:
+    admin-url: ${KEYCLOAK_ADMIN_URL:http://keycloak:8080}
+    realm: kaizendesk
+    admin-username: ${KEYCLOAK_ADMIN_USERNAME:admin}
+    admin-password: ${KEYCLOAK_ADMIN_PASSWORD:admin}
 
 server:
   port: 8081

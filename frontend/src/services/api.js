@@ -146,6 +146,8 @@ const KEYCLOAK_ADMIN_REALM = _KC_URL ? `${_KC_URL}/admin/realms/kaizendesk` : '/
  * Kayıt sonrası kullanıcıya rol atanır (varsayılan: CUSTOMER).
  */
 export async function register(username, password, email, firstName, lastName, role = 'CUSTOMER') {
+  const requestedRole = String(role || 'CUSTOMER').toUpperCase();
+  const selectedRole = requestedRole === 'AGENT' ? 'AGENT' : 'CUSTOMER';
   const adminParams = new URLSearchParams();
   adminParams.append('client_id', 'admin-cli');
   adminParams.append('grant_type', 'password');
@@ -166,7 +168,7 @@ export async function register(username, password, email, firstName, lastName, r
       email,
       firstName,
       lastName,
-      enabled: role !== 'AGENT',
+      enabled: selectedRole !== 'AGENT',
       emailVerified: true,
       credentials: [{ type: 'password', value: password, temporary: false }],
     },
@@ -182,7 +184,7 @@ export async function register(username, password, email, firstName, lastName, r
     throw new Error('Kullanıcı oluşturuldu ancak rol atanamadı.');
   }
 
-  const roleRes = await axios.get(`${KEYCLOAK_ADMIN_REALM}/roles/${role}`, {
+  const roleRes = await axios.get(`${KEYCLOAK_ADMIN_REALM}/roles/${selectedRole}`, {
     headers: authHeaders,
   });
   await axios.post(
@@ -223,13 +225,27 @@ async function getAdminToken() {
   return res.data.access_token;
 }
 
-/** Manager onayı bekleyen (enabled=false) kullanıcıları listeler. */
+async function getUserRealmRoles(userId, token) {
+  const res = await axios.get(`${KEYCLOAK_ADMIN_REALM}/users/${userId}/role-mappings/realm`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return Array.isArray(res.data) ? res.data.map((role) => role.name) : [];
+}
+
+/** Manager onayı bekleyen AGENT başvurularını listeler. */
 export async function getPendingUsers() {
   const token = await getAdminToken();
   const res = await axios.get(`${KEYCLOAK_ADMIN_USERS}?enabled=false&max=50`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  return res.data || [];
+  const disabledUsers = res.data || [];
+  const usersWithRoles = await Promise.all(
+    disabledUsers.map(async (user) => ({
+      ...user,
+      realmRoles: await getUserRealmRoles(user.id, token).catch(() => []),
+    }))
+  );
+  return usersWithRoles.filter((user) => user.realmRoles.includes('AGENT'));
 }
 
 /** Kullanıcıyı onaylar (enabled:true) ve hoş geldin e-postası gönderir. */
@@ -447,6 +463,11 @@ export async function changePassword(newPassword) {
     { type: 'password', value: newPassword, temporary: false },
     { headers }
   );
+}
+
+/** Müşteri hesabını soft delete ile kapatır (Keycloak devre dışı + DB anonimleştirme). */
+export async function deleteMyAccount() {
+  await api.delete('/users/me');
 }
 
 // ─── AI Endpoint'leri ────────────────────────────────────────────────────────

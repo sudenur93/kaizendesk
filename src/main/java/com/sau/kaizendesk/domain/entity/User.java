@@ -9,6 +9,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.Instant;
 
 /**
  * Sistemdeki kullanıcı kaydı.
@@ -54,6 +55,10 @@ public class User {
      */
     @Column(name = "team")
     private String team;
+
+    /** Soft delete zaman damgası; null ise hesap aktiftir. */
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
 
     public Long getId() {
         return id;
@@ -101,5 +106,13 @@ public class User {
 
     public void setTeam(String team) {
         this.team = team;
+    }
+
+    public Instant getDeletedAt() {
+        return deletedAt;
+    }
+
+    public void setDeletedAt(Instant deletedAt) {
+        this.deletedAt = deletedAt;
     }
 }

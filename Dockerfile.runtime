@@ -1,0 +1,8 @@
+# Önceden (mvnw ile) lokal olarak derlenmiş jar'ı çalıştıran hafif runtime image.
+# Kaynaktan derleyen çok aşamalı sürüm için bkz. Dockerfile.
+# Kullanım: önce `./mvnw -DskipTests package`, sonra `docker compose build api`.
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+COPY target/hello-0.0.1-SNAPSHOT.jar app.jar
+EXPOSE 8081
+ENTRYPOINT ["java","-jar","app.jar"]
