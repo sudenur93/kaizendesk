@@ -107,7 +107,10 @@ export async function login(username, password, totp = '', remember = true) {
   const refreshToken = res.data.refresh_token;
 
   const payload = JSON.parse(atob(token.split('.')[1]));
-  const realmRoles = payload.realm_access?.roles || [];
+  const realmRoles = [
+    ...(payload.realm_access?.roles || []),
+    ...(Array.isArray(payload.roles) ? payload.roles : []),
+  ];
 
   let role = 'CUSTOMER';
   if (realmRoles.includes('MANAGER')) role = 'MANAGER';
@@ -183,6 +186,22 @@ export async function register(username, password, email, firstName, lastName, r
   if (!newUser?.id) {
     throw new Error('Kullanıcı oluşturuldu ancak rol atanamadı.');
   }
+
+  await axios.put(
+    `${KEYCLOAK_ADMIN_USERS}/${newUser.id}`,
+    {
+      enabled: selectedRole !== 'AGENT',
+      emailVerified: true,
+      requiredActions: [],
+    },
+    { headers: authHeaders }
+  );
+
+  await axios.put(
+    `${KEYCLOAK_ADMIN_USERS}/${newUser.id}/reset-password`,
+    { type: 'password', value: password, temporary: false },
+    { headers: authHeaders }
+  );
 
   const roleRes = await axios.get(`${KEYCLOAK_ADMIN_REALM}/roles/${selectedRole}`, {
     headers: authHeaders,

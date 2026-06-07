@@ -46,7 +46,7 @@ export default function LoginPage() {
       } else if (desc === 'Account disabled') {
         setError('Hesabınız devre dışı bırakılmış.');
       } else {
-        setError('Giriş yapılamadı. Lütfen tekrar deneyin.');
+        setError(`Giriş yapılamadı. ${desc || 'Lütfen tekrar deneyin.'}`);
       }
     } finally {
       setLoading(false);
@@ -66,7 +66,7 @@ export default function LoginPage() {
       if (desc === 'Invalid user credentials') {
         setError('Parola veya doğrulama kodu hatalı.');
       } else {
-        setError('Giriş yapılamadı. Lütfen tekrar deneyin.');
+        setError(`Giriş yapılamadı. ${desc || 'Lütfen tekrar deneyin.'}`);
       }
     } finally {
       setLoading(false);

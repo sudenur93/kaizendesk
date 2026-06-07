@@ -213,11 +213,16 @@ public class UserService {
 
     private static UserRole resolveRole(Jwt jwt) {
         Map<String, Object> realmAccess = jwt.getClaim("realm_access");
-        if (realmAccess == null) {
-            return UserRole.CUSTOMER;
+        Collection<?> roles = null;
+        Object realmRolesObj = realmAccess != null ? realmAccess.get("roles") : null;
+        if (realmRolesObj instanceof Collection<?> realmRoles) {
+            roles = realmRoles;
         }
-        Object rolesObj = realmAccess.get("roles");
-        if (!(rolesObj instanceof Collection<?> roles)) {
+        Object flatRolesObj = jwt.getClaim("roles");
+        if (roles == null && flatRolesObj instanceof Collection<?> flatRoles) {
+            roles = flatRoles;
+        }
+        if (roles == null) {
             return UserRole.CUSTOMER;
         }
         boolean isManager = roles.stream().anyMatch(r -> "MANAGER".equalsIgnoreCase(String.valueOf(r)));

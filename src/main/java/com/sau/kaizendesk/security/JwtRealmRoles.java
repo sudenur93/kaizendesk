@@ -42,15 +42,16 @@ public final class JwtRealmRoles {
             return false;
         }
         Object realmAccess = jwt.getClaim("realm_access");
-        if (!(realmAccess instanceof Map)) {
-            return false;
+        if (realmAccess instanceof Map<?, ?> map) {
+            Object rolesObj = map.get("roles");
+            if (rolesObj instanceof List<?> roles && roles.contains(role)) {
+                return true;
+            }
         }
-        Map<?, ?> map = (Map<?, ?>) realmAccess;
-        Object rolesObj = map.get("roles");
-        if (!(rolesObj instanceof List)) {
-            return false;
+        Object flatRolesObj = jwt.getClaim("roles");
+        if (flatRolesObj instanceof List<?> flatRoles && flatRoles.contains(role)) {
+            return true;
         }
-        List<?> roles = (List<?>) rolesObj;
-        return roles.contains(role);
+        return false;
     }
 }

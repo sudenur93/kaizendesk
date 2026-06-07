@@ -1,5 +1,6 @@
 package com.sau.kaizendesk.config;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -106,7 +107,7 @@ public class SecurityConfig {
             JwtGrantedAuthoritiesConverter defaultConverter = new JwtGrantedAuthoritiesConverter();
 
             // Varsayılan scope/authority yetkileri (SCOPE_openid vb.)
-            Collection<GrantedAuthority> authorities = defaultConverter.convert(jwt);
+            Collection<GrantedAuthority> authorities = new ArrayList<>(defaultConverter.convert(jwt));
 
             // Keycloak realm rollerini JWT'den oku ve ROLE_ önekiyle ekle
             Map<String, Object> realmAccess = jwt.getClaim("realm_access");
@@ -121,6 +122,15 @@ public class SecurityConfig {
                     authorities.addAll(roleAuthorities);
                 }
             }
+            Object flatRolesObj = jwt.getClaim("roles");
+            if (flatRolesObj instanceof Collection<?> roles) {
+                List<GrantedAuthority> roleAuthorities = roles.stream()
+                        .filter(String.class::isInstance)
+                        .map(String.class::cast)
+                        .map(roleName -> new SimpleGrantedAuthority("ROLE_" + roleName.toUpperCase()))
+                        .collect(Collectors.toList());
+                authorities.addAll(roleAuthorities);
+            }
 
             return authorities;
         });
@@ -128,4 +138,3 @@ public class SecurityConfig {
         return converter;
     }
 }
-
